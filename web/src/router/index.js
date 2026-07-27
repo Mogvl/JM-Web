@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
+  { path: '/login', component: () => import('../views/Login.vue'), meta: { title: '登录', public: true } },
   { path: '/', component: () => import('../views/Home.vue'), meta: { title: '首页' } },
   { path: '/search', component: () => import('../views/Search.vue'), meta: { title: '搜索' } },
   { path: '/comic/:id', component: () => import('../views/Comic.vue'), meta: { title: '漫画详情' } },
@@ -19,7 +20,28 @@ const routes = [
   { path: '/help', component: () => import('../views/Help.vue'), meta: { title: '帮助' } }
 ]
 
-export default createRouter({
+const router = createRouter({
   history: createWebHistory(),
   routes
 })
+
+// 路由守卫
+router.beforeEach((to, from, next) => {
+  const token = localStorage.getItem('token')
+
+  // 公开页面不需要登录
+  if (to.meta.public) {
+    next()
+    return
+  }
+
+  // 未登录跳转到登录页
+  if (!token) {
+    next('/login')
+    return
+  }
+
+  next()
+})
+
+export default router

@@ -4,13 +4,15 @@
     <el-aside width="240px" class="sidebar">
       <div class="user-section">
         <el-avatar :size="80" :src="userInfo.avatar || '/avatar.png'" />
-        <el-button v-if="!isLoggedIn" type="primary" size="small" class="login-btn" @click="showLogin = true">登录</el-button>
-        <el-button v-else type="success" size="small" class="login-btn" @click="handleSign">签到</el-button>
         <div class="user-info">
-          <div class="username">{{ isLoggedIn ? userInfo.username : '游客' }}</div>
+          <div class="username">{{ username }}</div>
           <div class="coins">J Coins: {{ userInfo.coins || 0 }}</div>
           <div class="level">等级: {{ userInfo.level || 0 }}</div>
           <div class="favorites">收藏数: {{ userInfo.favorites || 0 }}</div>
+        </div>
+        <div class="user-actions">
+          <el-button v-if="username !== '游客'" type="success" size="small" @click="handleSign">签到</el-button>
+          <el-button type="danger" size="small" @click="handleLogout">退出</el-button>
         </div>
       </div>
 
@@ -109,22 +111,6 @@
         <router-view />
       </el-main>
     </el-container>
-
-    <!-- 登录弹窗 -->
-    <el-dialog v-model="showLogin" title="登录" width="400px">
-      <el-form :model="loginForm" label-width="80px">
-        <el-form-item label="用户名">
-          <el-input v-model="loginForm.username" placeholder="请输入用户名" />
-        </el-form-item>
-        <el-form-item label="密码">
-          <el-input v-model="loginForm.password" type="password" placeholder="请输入密码" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="showLogin = false">取消</el-button>
-        <el-button type="primary" @click="handleLogin">登录</el-button>
-      </template>
-    </el-dialog>
   </el-container>
 </template>
 
@@ -132,32 +118,17 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Star, Clock, ChatDotRound, HomeFilled, Search, Grid, Trophy, Calendar, Download, FolderOpened, Setting, QuestionFilled, Connection, MagicStick } from '@element-plus/icons-vue'
-import { login, getUserInfo, sign } from './api'
+import { getUserInfo, sign } from './api'
 import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const searchQuery = ref('')
-const showLogin = ref(false)
-const isLoggedIn = ref(false)
+const username = ref(localStorage.getItem('username') || '游客')
 const userInfo = ref({})
-const loginForm = ref({ username: '', password: '' })
 
 const doSearch = () => {
   if (searchQuery.value.trim()) {
     router.push({ path: '/search', query: { q: searchQuery.value.trim() } })
-  }
-}
-
-const handleLogin = async () => {
-  try {
-    const data = await login(loginForm.value.username, loginForm.value.password)
-    localStorage.setItem('token', data.token)
-    isLoggedIn.value = true
-    showLogin.value = false
-    ElMessage.success('登录成功')
-    loadUserInfo()
-  } catch (e) {
-    ElMessage.error('登录失败')
   }
 }
 
@@ -171,19 +142,23 @@ const handleSign = async () => {
   }
 }
 
+const handleLogout = () => {
+  localStorage.removeItem('token')
+  localStorage.removeItem('username')
+  router.push('/login')
+}
+
 const loadUserInfo = async () => {
   try {
     const data = await getUserInfo()
     userInfo.value = data
   } catch (e) {
-    // 未登录
+    // 未登录或游客
   }
 }
 
 onMounted(() => {
-  const token = localStorage.getItem('token')
-  if (token) {
-    isLoggedIn.value = true
+  if (username.value !== '游客') {
     loadUserInfo()
   }
 })
@@ -210,10 +185,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
   border-bottom: 1px solid #e6e6e6;
 }
 
-.login-btn { margin-top: 10px; }
-
 .user-info { margin-top: 10px; font-size: 12px; color: #666; }
 .user-info div { margin: 4px 0; }
+
+.user-actions { margin-top: 10px; display: flex; justify-content: center; gap: 8px; }
 
 .nav-menu {
   flex: 1;
