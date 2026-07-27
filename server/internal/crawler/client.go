@@ -2,6 +2,7 @@ package crawler
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -415,24 +416,41 @@ func (c *Client) Login(username, password string) (string, error) {
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	// 处理 gzip 压缩
+	var reader io.Reader
+	if resp.Header.Get("Content-Encoding") == "gzip" {
+		reader, err = gzip.NewReader(resp.Body)
+		if err != nil {
+			return "", err
+		}
+		defer reader.(*gzip.Reader).Close()
+	} else {
+		reader = resp.Body
+	}
+
+	body, err := io.ReadAll(reader)
 	if err != nil {
 		return "", err
 	}
 
 	log.Infof("Login response: %s", string(body))
 
+	// 原版响应格式: {"code":200,"data":{...},"errorMsg":""}
 	var loginResp LoginResponse
 	if err := json.Unmarshal(body, &loginResp); err != nil {
 		return "", fmt.Errorf("parse response failed: %s", string(body))
 	}
 
-	if !loginResp.Success {
-		return "", fmt.Errorf("login failed: %s", loginResp.Message)
+	if loginResp.Code != 200 {
+		return "", fmt.Errorf("login failed: %s", loginResp.ErrorMsg)
 	}
 
-	c.auth = loginResp.Data.Token
-	return loginResp.Data.Token, nil
+	// 从 data 中提取 token
+	if len(loginResp.Data) > 0 {
+		c.auth = loginResp.Data
+	}
+
+	return loginResp.Data, nil
 }
 
 func (c *Client) Register(username, email, password, passwordConfirm, gender string) error {

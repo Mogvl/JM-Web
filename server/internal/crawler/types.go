@@ -62,14 +62,10 @@ type CommentData struct {
 	CreateTime string `json:"create_time"`
 }
 
-type LoginData struct {
-	Token string `json:"token"`
-}
-
 type LoginResponse struct {
-	Success bool      `json:"success"`
-	Message string    `json:"message"`
-	Data    LoginData `json:"data"`
+	Code     int    `json:"code"`
+	Data     string `json:"data"`
+	ErrorMsg string `json:"errorMsg"`
 }
 
 type ComicItem struct {
