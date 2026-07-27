@@ -19,9 +19,14 @@ type Client struct {
 
 func NewClient(baseURL, auth string) *Client {
 	return &Client{
-		baseURL:    baseURL,
-		auth:       auth,
-		httpClient: &http.Client{},
+		baseURL: baseURL,
+		auth:    auth,
+		httpClient: &http.Client{
+			// 不自动跟随重定向
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		},
 	}
 }
 
@@ -395,8 +400,13 @@ func (c *Client) Login(username, password string) (string, error) {
 		return "", err
 	}
 
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	// 和原版一样的 headers
+	req.Header.Set("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
+	req.Header.Set("accept-encoding", "gzip, deflate, br")
+	req.Header.Set("accept-language", "zh-CN,zh;q=0.9")
+	req.Header.Set("upgrade-insecure-requests", "1")
+	req.Header.Set("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 Edg/114.0.1823.43")
+	req.Header.Set("content-type", "application/x-www-form-urlencoded")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -410,9 +420,11 @@ func (c *Client) Login(username, password string) (string, error) {
 		return "", err
 	}
 
+	log.Infof("Login response: %s", string(body))
+
 	var loginResp LoginResponse
 	if err := json.Unmarshal(body, &loginResp); err != nil {
-		return "", err
+		return "", fmt.Errorf("parse response failed: %s", string(body))
 	}
 
 	if !loginResp.Success {
