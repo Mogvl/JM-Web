@@ -65,6 +65,14 @@
             <el-icon><FolderOpened /></el-icon>
             <span>本地阅读</span>
           </el-menu-item>
+          <el-menu-item index="/nas">
+            <el-icon><Connection /></el-icon>
+            <span>NAS 同步</span>
+          </el-menu-item>
+          <el-menu-item index="/waifu2x">
+            <el-icon><MagicStick /></el-icon>
+            <span>图片增强</span>
+          </el-menu-item>
           <el-menu-item index="/settings">
             <el-icon><Setting /></el-icon>
             <span>设置</span>
@@ -123,7 +131,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Star, Clock, ChatDotRound, HomeFilled, Search, Grid, Trophy, Calendar, Download, FolderOpened, Setting, QuestionFilled } from '@element-plus/icons-vue'
+import { Star, Clock, ChatDotRound, HomeFilled, Search, Grid, Trophy, Calendar, Download, FolderOpened, Setting, QuestionFilled, Connection, MagicStick } from '@element-plus/icons-vue'
 import { login, getUserInfo, sign } from './api'
 import { ElMessage } from 'element-plus'
 

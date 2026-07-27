@@ -13,6 +13,8 @@ const routes = [
   { path: '/weekly', component: () => import('../views/Weekly.vue'), meta: { title: '每周更新' } },
   { path: '/comments', component: () => import('../views/Comments.vue'), meta: { title: '我的评论' } },
   { path: '/local', component: () => import('../views/Local.vue'), meta: { title: '本地阅读' } },
+  { path: '/nas', component: () => import('../views/Nas.vue'), meta: { title: 'NAS 同步' } },
+  { path: '/waifu2x', component: () => import('../views/Waifu2x.vue'), meta: { title: '图片增强' } },
   { path: '/settings', component: () => import('../views/Settings.vue'), meta: { title: '设置' } },
   { path: '/help', component: () => import('../views/Help.vue'), meta: { title: '帮助' } }
 ]
