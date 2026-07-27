@@ -15,11 +15,33 @@
         </div>
       </div>
     </div>
+
     <h2>章节列表 ({{ chapters.length }})</h2>
     <div class="chapters">
       <el-button v-for="ch in chapters" :key="ch.id" @click="$router.push(`/read/${$route.params.id}/${ch.id}`)">
         {{ ch.title }}
       </el-button>
+    </div>
+
+    <h2>评论 ({{ comments.length }})</h2>
+    <div class="comments">
+      <div v-if="comments.length === 0" class="empty">暂无评论</div>
+      <div v-else class="comment-list">
+        <div v-for="comment in comments" :key="comment.id" class="comment-item">
+          <el-avatar :size="40" :src="comment.avatar" />
+          <div class="comment-content">
+            <div class="comment-header">
+              <span class="author">{{ comment.author }}</span>
+              <span class="time">{{ comment.create_time }}</span>
+            </div>
+            <div class="comment-text">{{ comment.content }}</div>
+            <div class="comment-actions">
+              <el-button text size="small">👍 {{ comment.like_count }}</el-button>
+              <el-button text size="small">回复</el-button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
   <div v-else class="loading">加载中...</div>
@@ -28,13 +50,14 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getComic, getChapters, getFavorites, addFavorite, removeFavorite, createDownload } from '../api'
+import { getComic, getChapters, getComments, getFavorites, addFavorite, removeFavorite, createDownload } from '../api'
 import { ElMessage } from 'element-plus'
 
 const route = useRoute()
 const router = useRouter()
 const comic = ref(null)
 const chapters = ref([])
+const comments = ref([])
 const isFav = ref(false)
 
 onMounted(async () => {
@@ -42,6 +65,14 @@ onMounted(async () => {
   comic.value = await getComic(id)
   const data = await getChapters(id)
   chapters.value = data.chapters || []
+
+  try {
+    const commentData = await getComments(id)
+    comments.value = commentData || []
+  } catch (e) {
+    comments.value = []
+  }
+
   const favs = await getFavorites()
   isFav.value = favs.some(f => f.comic_id === id)
 })
@@ -73,6 +104,16 @@ const startDownload = async () => {
 .info p { margin-bottom: 8px; color: #666; }
 .desc { margin-top: 10px; line-height: 1.6; }
 .actions { margin-top: 20px; display: flex; gap: 12px; }
-.chapters { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.chapters { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; margin-bottom: 40px; }
+.comments { margin-top: 20px; }
+.empty { text-align: center; padding: 40px 0; color: #999; }
+.comment-list { display: flex; flex-direction: column; gap: 16px; }
+.comment-item { display: flex; gap: 12px; }
+.comment-content { flex: 1; }
+.comment-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.author { font-weight: bold; }
+.time { color: #999; font-size: 12px; }
+.comment-text { line-height: 1.6; }
+.comment-actions { margin-top: 8px; }
 .loading { text-align: center; padding: 100px 0; color: #999; }
 </style>

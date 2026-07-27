@@ -9,9 +9,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// ==================== 搜索和浏览 ====================
+
 func (r *Router) Search(c *gin.Context) {
 	query := c.Query("q")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	sort := c.DefaultQuery("sort", "")
 
 	if query == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "q is required"})
@@ -89,6 +92,8 @@ func (r *Router) GetCategories(c *gin.Context) {
 	c.JSON(http.StatusOK, categories)
 }
 
+// ==================== 收藏 ====================
+
 func (r *Router) GetFavorites(c *gin.Context) {
 	favorites, err := r.db.GetFavorites()
 	if err != nil {
@@ -126,6 +131,8 @@ func (r *Router) RemoveFavorite(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Removed"})
 }
 
+// ==================== 历史 ====================
+
 func (r *Router) GetHistory(c *gin.Context) {
 	history, err := r.db.GetHistory()
 	if err != nil {
@@ -145,6 +152,16 @@ func (r *Router) DeleteHistory(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Deleted"})
 }
+
+func (r *Router) ClearHistory(c *gin.Context) {
+	if err := r.db.ClearHistory(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to clear history"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Cleared"})
+}
+
+// ==================== 下载 ====================
 
 func (r *Router) CreateDownload(c *gin.Context) {
 	var req struct {
@@ -173,6 +190,127 @@ func (r *Router) GetDownloads(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, downloads)
+}
+
+func (r *Router) DeleteDownload(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("id"))
+	if err := r.db.DeleteDownload(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete download"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Deleted"})
+}
+
+func (r *Router) ClearDownloads(c *gin.Context) {
+	if err := r.db.ClearDownloads(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to clear downloads"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Cleared"})
+}
+
+// ==================== 排行榜 ====================
+
+func (r *Router) GetRanking(c *gin.Context) {
+	rankType := c.DefaultQuery("type", "daily")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+
+	result, err := r.client.GetRanking(rankType, page)
+	if err != nil {
+		log.Errorf("Get ranking failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get ranking"})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+// ==================== 评论 ====================
+
+func (r *Router) GetComments(c *gin.Context) {
+	comicID := c.Param("id")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+
+	comments, err := r.client.GetComments(comicID, page)
+	if err != nil {
+		log.Errorf("Get comments failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get comments"})
+		return
+	}
+
+	c.JSON(http.StatusOK, comments)
+}
+
+func (r *Router) GetSubComments(c *gin.Context) {
+	commentID := c.Param("id")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+
+	comments, err := r.client.GetSubComments(commentID, page)
+	if err != nil {
+		log.Errorf("Get sub comments failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get sub comments"})
+		return
+	}
+
+	c.JSON(http.StatusOK, comments)
+}
+
+// ==================== 用户 ====================
+
+func (r *Router) Login(c *gin.Context) {
+	var req struct {
+		Username string `json:"username" binding:"required"`
+		Password string `json:"password" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "username and password required"})
+		return
+	}
+
+	token, err := r.client.Login(req.Username, req.Password)
+	if err != nil {
+		log.Errorf("Login failed: %v", err)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Login failed"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"token": token})
+}
+
+func (r *Router) GetUserInfo(c *gin.Context) {
+	info, err := r.client.GetUserInfo()
+	if err != nil {
+		log.Errorf("Get user info failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user info"})
+		return
+	}
+
+	c.JSON(http.StatusOK, info)
+}
+
+func (r *Router) Sign(c *gin.Context) {
+	err := r.client.Sign()
+	if err != nil {
+		log.Errorf("Sign failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Sign failed"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Signed"})
+}
+
+// ==================== 帮助 ====================
+
+func (r *Router) GetHelp(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"version": "1.0.0",
+		"faq": []map[string]string{
+			{"q": "如何搜索漫画？", "a": "在顶部搜索框输入关键词，按回车即可搜索。"},
+			{"q": "如何收藏漫画？", "a": "在漫画详情页点击收藏按钮。"},
+			{"q": "如何下载漫画？", "a": "在漫画详情页点击下载按钮，下载任务会添加到下载管理中。"},
+			{"q": "如何切换阅读模式？", "a": "在设置页面可以切换滚动/翻页模式。"},
+		},
+	})
 }
 
 func (r *Router) processDownload(downloadID int, comicID string) {

@@ -3,12 +3,14 @@
     <!-- 左侧导航栏 -->
     <el-aside width="240px" class="sidebar">
       <div class="user-section">
-        <el-avatar :size="80" src="/avatar.png" />
-        <el-button type="primary" size="small" class="login-btn">登录</el-button>
+        <el-avatar :size="80" :src="userInfo.avatar || '/avatar.png'" />
+        <el-button v-if="!isLoggedIn" type="primary" size="small" class="login-btn" @click="showLogin = true">登录</el-button>
+        <el-button v-else type="success" size="small" class="login-btn" @click="handleSign">签到</el-button>
         <div class="user-info">
-          <div class="username">游客</div>
-          <div class="coins">J Coins: 0</div>
-          <div class="level">等级: 0</div>
+          <div class="username">{{ isLoggedIn ? userInfo.username : '游客' }}</div>
+          <div class="coins">J Coins: {{ userInfo.coins || 0 }}</div>
+          <div class="level">等级: {{ userInfo.level || 0 }}</div>
+          <div class="favorites">收藏数: {{ userInfo.favorites || 0 }}</div>
         </div>
       </div>
 
@@ -22,6 +24,10 @@
           <el-menu-item index="/history">
             <el-icon><Clock /></el-icon>
             <span>阅读历史</span>
+          </el-menu-item>
+          <el-menu-item index="/comments">
+            <el-icon><ChatDotRound /></el-icon>
+            <span>我的评论</span>
           </el-menu-item>
         </el-menu-item-group>
 
@@ -43,6 +49,10 @@
             <el-icon><Trophy /></el-icon>
             <span>排行榜</span>
           </el-menu-item>
+          <el-menu-item index="/weekly">
+            <el-icon><Calendar /></el-icon>
+            <span>每周更新</span>
+          </el-menu-item>
         </el-menu-item-group>
 
         <el-menu-item-group>
@@ -51,9 +61,17 @@
             <el-icon><Download /></el-icon>
             <span>下载管理</span>
           </el-menu-item>
+          <el-menu-item index="/local">
+            <el-icon><FolderOpened /></el-icon>
+            <span>本地阅读</span>
+          </el-menu-item>
           <el-menu-item index="/settings">
             <el-icon><Setting /></el-icon>
             <span>设置</span>
+          </el-menu-item>
+          <el-menu-item index="/help">
+            <el-icon><QuestionFilled /></el-icon>
+            <span>帮助</span>
           </el-menu-item>
         </el-menu-item-group>
       </el-menu>
@@ -83,22 +101,84 @@
         <router-view />
       </el-main>
     </el-container>
+
+    <!-- 登录弹窗 -->
+    <el-dialog v-model="showLogin" title="登录" width="400px">
+      <el-form :model="loginForm" label-width="80px">
+        <el-form-item label="用户名">
+          <el-input v-model="loginForm.username" placeholder="请输入用户名" />
+        </el-form-item>
+        <el-form-item label="密码">
+          <el-input v-model="loginForm.password" type="password" placeholder="请输入密码" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showLogin = false">取消</el-button>
+        <el-button type="primary" @click="handleLogin">登录</el-button>
+      </template>
+    </el-dialog>
   </el-container>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Star, Clock, HomeFilled, Search, Grid, Trophy, Download, Setting } from '@element-plus/icons-vue'
+import { Star, Clock, ChatDotRound, HomeFilled, Search, Grid, Trophy, Calendar, Download, FolderOpened, Setting, QuestionFilled } from '@element-plus/icons-vue'
+import { login, getUserInfo, sign } from './api'
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const searchQuery = ref('')
+const showLogin = ref(false)
+const isLoggedIn = ref(false)
+const userInfo = ref({})
+const loginForm = ref({ username: '', password: '' })
 
 const doSearch = () => {
   if (searchQuery.value.trim()) {
     router.push({ path: '/search', query: { q: searchQuery.value.trim() } })
   }
 }
+
+const handleLogin = async () => {
+  try {
+    const data = await login(loginForm.value.username, loginForm.value.password)
+    localStorage.setItem('token', data.token)
+    isLoggedIn.value = true
+    showLogin.value = false
+    ElMessage.success('登录成功')
+    loadUserInfo()
+  } catch (e) {
+    ElMessage.error('登录失败')
+  }
+}
+
+const handleSign = async () => {
+  try {
+    await sign()
+    ElMessage.success('签到成功')
+    loadUserInfo()
+  } catch (e) {
+    ElMessage.error('签到失败')
+  }
+}
+
+const loadUserInfo = async () => {
+  try {
+    const data = await getUserInfo()
+    userInfo.value = data
+  } catch (e) {
+    // 未登录
+  }
+}
+
+onMounted(() => {
+  const token = localStorage.getItem('token')
+  if (token) {
+    isLoggedIn.value = true
+    loadUserInfo()
+  }
+})
 </script>
 
 <style>

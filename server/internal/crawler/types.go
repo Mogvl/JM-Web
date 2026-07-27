@@ -53,6 +53,19 @@ type CategoryData struct {
 	PathWord string `json:"path_word"`
 }
 
+type CommentData struct {
+	ID         string `json:"id"`
+	Content    string `json:"content"`
+	Author     string `json:"author"`
+	Avatar     string `json:"avatar"`
+	LikeCount  int    `json:"like_count"`
+	CreateTime string `json:"create_time"`
+}
+
+type LoginData struct {
+	Token string `json:"token"`
+}
+
 type ComicItem struct {
 	ID       string `json:"id"`
 	Title    string `json:"title"`
@@ -80,6 +93,23 @@ type ChapterItem struct {
 type CategoryItem struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
+}
+
+type CommentItem struct {
+	ID         string `json:"id"`
+	Content    string `json:"content"`
+	Author     string `json:"author"`
+	Avatar     string `json:"avatar"`
+	LikeCount  int    `json:"like_count"`
+	CreateTime string `json:"create_time"`
+}
+
+type UserInfo struct {
+	Username string `json:"username"`
+	Avatar   string `json:"avatar"`
+	Coins    int    `json:"coins"`
+	Level    int    `json:"level"`
+	Favorites int   `json:"favorites"`
 }
 
 type SearchResult struct {

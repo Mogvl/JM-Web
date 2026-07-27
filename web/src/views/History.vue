@@ -1,6 +1,9 @@
 <template>
   <div class="history">
-    <h2>阅读历史</h2>
+    <div class="header">
+      <h2>阅读历史</h2>
+      <el-button type="danger" @click="handleClear">清空历史</el-button>
+    </div>
     <div v-if="loading" class="loading">加载中...</div>
     <div v-else-if="list.length === 0" class="empty">还没有记录</div>
     <div v-else class="list">
@@ -11,7 +14,7 @@
             <h3 @click="$router.push(`/comic/${item.comic_id}`)">{{ item.comic?.title }}</h3>
             <p>{{ formatDate(item.last_read_at) }}</p>
           </div>
-          <el-button type="danger" text @click="remove(item.id)">删除</el-button>
+          <el-button type="danger" text @click="handleDelete(item.id)">删除</el-button>
         </div>
       </el-card>
     </div>
@@ -20,16 +23,24 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getHistory, deleteHistory } from '../api'
+import { getHistory, deleteHistory, clearHistory } from '../api'
+import { ElMessage } from 'element-plus'
 
 const list = ref([])
 const loading = ref(true)
 
 const formatDate = (d) => new Date(d).toLocaleString('zh-CN')
 
-const remove = async (id) => {
+const handleDelete = async (id) => {
   await deleteHistory(id)
   list.value = list.value.filter(i => i.id !== id)
+  ElMessage.success('已删除')
+}
+
+const handleClear = async () => {
+  await clearHistory()
+  list.value = []
+  ElMessage.success('已清空')
 }
 
 onMounted(async () => {
@@ -39,7 +50,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.history h2 { margin-bottom: 20px; }
+.history .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .loading, .empty { text-align: center; padding: 100px 0; color: #999; }
 .list { display: flex; flex-direction: column; gap: 16px; }
 .item .content { display: flex; align-items: center; gap: 16px; }

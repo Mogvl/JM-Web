@@ -34,11 +34,14 @@ func New(dbPath string) (*DB, error) {
 		&model.Download{},
 	); err != nil {
 		log.Errorf("Failed to migrate database: %v", err)
-		return nil, err	}
+		return nil, err
+	}
 
 	log.Info("Database initialized")
 	return &DB{db}, nil
 }
+
+// ==================== Comic ====================
 
 func (db *DB) SaveComic(comic *model.Comic) error {
 	return db.Save(comic).Error
@@ -50,6 +53,8 @@ func (db *DB) GetComic(id string) (*model.Comic, error) {
 	return &comic, err
 }
 
+// ==================== Chapter ====================
+
 func (db *DB) SaveChapter(chapter *model.Chapter) error {
 	return db.Save(chapter).Error
 }
@@ -59,6 +64,8 @@ func (db *DB) GetChapters(comicID string) ([]model.Chapter, error) {
 	err := db.Where("comic_id = ?", comicID).Order("sort_order").Find(&chapters).Error
 	return chapters, err
 }
+
+// ==================== Favorite ====================
 
 func (db *DB) AddFavorite(comicID string) error {
 	return db.Create(&model.Favorite{ComicID: comicID}).Error
@@ -80,6 +87,8 @@ func (db *DB) GetFavorites() ([]model.Favorite, error) {
 	return favorites, err
 }
 
+// ==================== History ====================
+
 func (db *DB) AddHistory(comicID, chapterID string, page int) error {
 	history := &model.History{
 		ComicID:   comicID,
@@ -98,6 +107,12 @@ func (db *DB) GetHistory() ([]model.History, error) {
 func (db *DB) DeleteHistory(id int) error {
 	return db.Delete(&model.History{}, id).Error
 }
+
+func (db *DB) ClearHistory() error {
+	return db.Where("1 = 1").Delete(&model.History{}).Error
+}
+
+// ==================== Download ====================
 
 func (db *DB) CreateDownload(comicID string) (*model.Download, error) {
 	dl := &model.Download{
@@ -126,4 +141,12 @@ func (db *DB) GetDownload(id int) (*model.Download, error) {
 	var dl model.Download
 	err := db.Preload("Comic").First(&dl, id).Error
 	return &dl, err
+}
+
+func (db *DB) DeleteDownload(id int) error {
+	return db.Delete(&model.Download{}, id).Error
+}
+
+func (db *DB) ClearDownloads() error {
+	return db.Where("1 = 1").Delete(&model.Download{}).Error
 }

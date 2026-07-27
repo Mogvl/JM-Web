@@ -10,7 +10,11 @@ const routes = [
   { path: '/downloads', component: () => import('../views/Downloads.vue'), meta: { title: '下载管理' } },
   { path: '/category', component: () => import('../views/Category.vue'), meta: { title: '分类' } },
   { path: '/rank', component: () => import('../views/Rank.vue'), meta: { title: '排行榜' } },
-  { path: '/settings', component: () => import('../views/Settings.vue'), meta: { title: '设置' } }
+  { path: '/weekly', component: () => import('../views/Weekly.vue'), meta: { title: '每周更新' } },
+  { path: '/comments', component: () => import('../views/Comments.vue'), meta: { title: '我的评论' } },
+  { path: '/local', component: () => import('../views/Local.vue'), meta: { title: '本地阅读' } },
+  { path: '/settings', component: () => import('../views/Settings.vue'), meta: { title: '设置' } },
+  { path: '/help', component: () => import('../views/Help.vue'), meta: { title: '帮助' } }
 ]
 
 export default createRouter({
