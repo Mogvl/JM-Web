@@ -3,11 +3,13 @@ package crawler
 import (
 	"bytes"
 	"compress/gzip"
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -23,12 +25,28 @@ func NewClient(baseURL, auth string) *Client {
 		baseURL: baseURL,
 		auth:    auth,
 		httpClient: &http.Client{
-			// 不自动跟随重定向
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				return http.ErrUseLastResponse
-			},
+			Timeout: 30 * time.Second,
 		},
 	}
+}
+
+func (c *Client) getHeaders(method string) map[string]string {
+	now := time.Now().Unix()
+	param := fmt.Sprintf("%d18comicAPP", now)
+	token := fmt.Sprintf("%x", md5.Sum([]byte(param)))
+
+	headers := map[string]string{
+		"tokenparam":     fmt.Sprintf("%d,2.0.26", now),
+		"token":          token,
+		"accept-encoding": "gzip",
+		"version":        "1.7.5",
+	}
+
+	if method == "POST" {
+		headers["Content-Type"] = "application/x-www-form-urlencoded"
+	}
+
+	return headers
 }
 
 func (c *Client) doRequest(url string) ([]byte, error) {
@@ -37,7 +55,11 @@ func (c *Client) doRequest(url string) ([]byte, error) {
 		return nil, err
 	}
 
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+	headers := c.getHeaders("GET")
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+
 	if c.auth != "" {
 		req.Header.Set("Authorization", c.auth)
 	}
@@ -48,7 +70,7 @@ func (c *Client) doRequest(url string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
-	return io.ReadAll(resp.Body)
+	return c.readResponse(resp)
 }
 
 func (c *Client) doRequestWithMethod(method, url string, body interface{}) ([]byte, error) {
@@ -63,8 +85,11 @@ func (c *Client) doRequestWithMethod(method, url string, body interface{}) ([]by
 		return nil, err
 	}
 
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-	req.Header.Set("Content-Type", "application/json")
+	headers := c.getHeaders(method)
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+
 	if c.auth != "" {
 		req.Header.Set("Authorization", c.auth)
 	}
@@ -75,7 +100,23 @@ func (c *Client) doRequestWithMethod(method, url string, body interface{}) ([]by
 	}
 	defer resp.Body.Close()
 
-	return io.ReadAll(resp.Body)
+	return c.readResponse(resp)
+}
+
+func (c *Client) readResponse(resp *http.Response) ([]byte, error) {
+	var reader io.Reader
+	if resp.Header.Get("Content-Encoding") == "gzip" {
+		var err error
+		reader, err = gzip.NewReader(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		defer reader.(*gzip.Reader).Close()
+	} else {
+		reader = resp.Body
+	}
+
+	return io.ReadAll(reader)
 }
 
 func (c *Client) Search(query string, page int) (*SearchResult, error) {
@@ -402,12 +443,10 @@ func (c *Client) Login(username, password string) (string, error) {
 	}
 
 	// 和原版一样的 headers
-	req.Header.Set("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
-	req.Header.Set("accept-encoding", "gzip, deflate, br")
-	req.Header.Set("accept-language", "zh-CN,zh;q=0.9")
-	req.Header.Set("upgrade-insecure-requests", "1")
-	req.Header.Set("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 Edg/114.0.1823.43")
-	req.Header.Set("content-type", "application/x-www-form-urlencoded")
+	headers := c.getHeaders("POST")
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -416,26 +455,14 @@ func (c *Client) Login(username, password string) (string, error) {
 	}
 	defer resp.Body.Close()
 
-	// 处理 gzip 压缩
-	var reader io.Reader
-	if resp.Header.Get("Content-Encoding") == "gzip" {
-		reader, err = gzip.NewReader(resp.Body)
-		if err != nil {
-			return "", err
-		}
-		defer reader.(*gzip.Reader).Close()
-	} else {
-		reader = resp.Body
-	}
-
-	body, err := io.ReadAll(reader)
+	body, err := c.readResponse(resp)
 	if err != nil {
 		return "", err
 	}
 
 	log.Infof("Login response: %s", string(body))
 
-	// 原版响应格式: {"code":200,"data":{...},"errorMsg":""}
+	// 原版响应格式: {"code":200,"data":"...","errorMsg":""}
 	var loginResp LoginResponse
 	if err := json.Unmarshal(body, &loginResp); err != nil {
 		return "", fmt.Errorf("parse response failed: %s", string(body))
@@ -445,18 +472,15 @@ func (c *Client) Login(username, password string) (string, error) {
 		return "", fmt.Errorf("login failed: %s", loginResp.ErrorMsg)
 	}
 
-	// 从 data 中提取 token
-	if len(loginResp.Data) > 0 {
-		c.auth = loginResp.Data
-	}
-
+	// data 就是 token
+	c.auth = loginResp.Data
 	return loginResp.Data, nil
 }
 
 func (c *Client) Register(username, email, password, passwordConfirm, gender string) error {
 	registerURL := fmt.Sprintf("%s/signup", c.baseURL)
 
-	// 原版使用 multipart/form-data
+	// 原版使用 URL编码格式
 	data := url.Values{}
 	data.Set("username", username)
 	data.Set("email", email)
@@ -472,9 +496,14 @@ func (c *Client) Register(username, email, password, passwordConfirm, gender str
 		return err
 	}
 
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Referer", registerURL)
+	// 原版使用 WebHeader
+	req.Header.Set("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
+	req.Header.Set("accept-encoding", "gzip, deflate, br")
+	req.Header.Set("accept-language", "zh-CN,zh;q=0.9")
+	req.Header.Set("upgrade-insecure-requests", "1")
+	req.Header.Set("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 Edg/114.0.1823.43")
+	req.Header.Set("content-type", "application/x-www-form-urlencoded")
+	req.Header.Set("referer", registerURL)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -483,10 +512,12 @@ func (c *Client) Register(username, email, password, passwordConfirm, gender str
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := c.readResponse(resp)
 	if err != nil {
 		return err
 	}
+
+	log.Infof("Register response: %s", string(body))
 
 	var registerResp APIResponse
 	if err := json.Unmarshal(body, &registerResp); err != nil {
