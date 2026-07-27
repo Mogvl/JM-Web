@@ -1,15 +1,27 @@
 # JMComic Web
 
-用 Go + Vue3 重构的 JMComic 漫画阅读 Web 端。
+用 Go + Vue3 重构的 JMComic 漫画阅读 Web 端，参考 [JMComic-qt](https://github.com/tonquer/JMComic-qt)。
 
 ## 功能
 
-- 🔍 搜索漫画
-- 📖 在线阅读
-- ⬇️ 下载管理
-- ⭐ 收藏夹
-- 📜 阅读历史
-- 📂 分类浏览
+| 功能 | 说明 |
+|------|------|
+| 🔍 搜索 | 关键词搜索漫画 |
+| 📂 分类 | 按分类浏览 |
+| 🏆 排行榜 | 日榜/周榜/月榜 |
+| 📅 每周更新 | 每周更新列表 |
+| 📖 漫画详情 | 封面、作者、标签、章节 |
+| 📄 阅读器 | 滚动/翻页模式 |
+| 💬 评论 | 查看/回复评论 |
+| ⭐ 收藏 | 收藏漫画 |
+| 📜 历史 | 阅读历史 |
+| ⬇️ 下载 | 下载管理 |
+| 👤 用户 | 登录/签到 |
+| 📁 本地阅读 | 本地文件导入 |
+| 🖥️ NAS 同步 | 同步到 NAS |
+| ✨ 图片增强 | Waifu2x 超分辨率 |
+| ⚙️ 设置 | API/代理/阅读模式 |
+| ❓ 帮助 | FAQ |
 
 ## 技术栈
 
@@ -75,11 +87,13 @@ npm run dev
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | /api/search?q=&page= | 搜索 |
+| GET | /api/search | 搜索 |
 | GET | /api/comic/:id | 漫画详情 |
 | GET | /api/comic/:id/chapters | 章节列表 |
 | GET | /api/chapter/:id | 章节图片 |
 | GET | /api/categories | 分类 |
+| GET | /api/ranking | 排行榜 |
+| GET | /api/comic/:id/comments | 评论 |
 | GET | /api/favorites | 收藏 |
 | POST | /api/favorites | 添加收藏 |
 | DELETE | /api/favorites/:id | 取消收藏 |
@@ -87,6 +101,10 @@ npm run dev
 | DELETE | /api/history/:id | 删除历史 |
 | POST | /api/download | 创建下载 |
 | GET | /api/downloads | 下载列表 |
+| POST | /api/login | 登录 |
+| GET | /api/user/info | 用户信息 |
+| POST | /api/user/sign | 签到 |
+| GET | /api/help | 帮助 |
 
 ## 环境变量
 
@@ -96,3 +114,4 @@ npm run dev
 | DB_PATH | /data/jmcomic.db | 数据库路径 |
 | DOWNLOAD_DIR | /data/downloads | 下载目录 |
 | JM_BASE_URL | https://jmcomic.me | API地址 |
+| JM_AUTH | | 认证 Token |
