@@ -17,6 +17,14 @@
 - **前端**: Vue3 + Vite + Element Plus
 - **部署**: Docker + GitHub Actions CI
 
+## 端口配置
+
+| 服务 | 端口 |
+|------|------|
+| 后端 API | 5000 |
+| 前端开发 | 5001 |
+| Docker 部署 | 5000 |
+
 ## 绿联云部署
 
 ```yaml
@@ -50,18 +58,20 @@ services:
 ## 本地开发
 
 ```bash
-# 后端
+# 后端（端口 5000）
 cd server
 GOPROXY=https://goproxy.cn,direct go mod tidy
 go run cmd/main.go
 
-# 前端
+# 前端（端口 5001）
 cd web
 npm install
 npm run dev
 ```
 
-## API
+访问 http://localhost:5001
+
+## API 接口
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -82,7 +92,7 @@ npm run dev
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| PORT | 8080 | 后端端口 |
+| PORT | 5000 | 后端端口 |
 | DB_PATH | /data/jmcomic.db | 数据库路径 |
 | DOWNLOAD_DIR | /data/downloads | 下载目录 |
 | JM_BASE_URL | https://jmcomic.me | API地址 |
