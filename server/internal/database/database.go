@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 
 	"github.com/Mogvl/JM-Web/server/internal/model"
+	"github.com/glebarez/sqlite"
 	log "github.com/sirupsen/logrus"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
