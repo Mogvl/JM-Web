@@ -66,6 +66,12 @@ type LoginData struct {
 	Token string `json:"token"`
 }
 
+type LoginResponse struct {
+	Success bool      `json:"success"`
+	Message string    `json:"message"`
+	Data    LoginData `json:"data"`
+}
+
 type ComicItem struct {
 	ID       string `json:"id"`
 	Title    string `json:"title"`

@@ -383,30 +383,91 @@ func (c *Client) GetSubComments(commentID string, page int) ([]CommentItem, erro
 }
 
 func (c *Client) Login(username, password string) (string, error) {
-	loginURL := fmt.Sprintf("%s/api/login", c.baseURL)
+	loginURL := fmt.Sprintf("%s/login", c.baseURL)
 
-	body, err := c.doRequestWithMethod("POST", loginURL, map[string]string{
-		"username": username,
-		"password": password,
-	})
+	// 原版使用 URL编码格式
+	data := url.Values{}
+	data.Set("username", username)
+	data.Set("password", password)
+
+	req, err := http.NewRequest("POST", loginURL, bytes.NewBufferString(data.Encode()))
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		log.Errorf("Login failed: %v", err)
 		return "", err
 	}
+	defer resp.Body.Close()
 
-	var resp APIResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
 		return "", err
 	}
 
-	dataBytes, _ := json.Marshal(resp.Data)
-	var loginData LoginData
-	if err := json.Unmarshal(dataBytes, &loginData); err != nil {
+	var loginResp LoginResponse
+	if err := json.Unmarshal(body, &loginResp); err != nil {
 		return "", err
 	}
 
-	c.auth = loginData.Token
-	return loginData.Token, nil
+	if !loginResp.Success {
+		return "", fmt.Errorf("login failed: %s", loginResp.Message)
+	}
+
+	c.auth = loginResp.Data.Token
+	return loginResp.Data.Token, nil
+}
+
+func (c *Client) Register(username, email, password, passwordConfirm, gender string) error {
+	registerURL := fmt.Sprintf("%s/signup", c.baseURL)
+
+	// 原版使用 multipart/form-data
+	data := url.Values{}
+	data.Set("username", username)
+	data.Set("email", email)
+	data.Set("password", password)
+	data.Set("password_confirm", passwordConfirm)
+	data.Set("gender", gender)
+	data.Set("age", "on")
+	data.Set("terms", "on")
+	data.Set("submit_signup", "")
+
+	req, err := http.NewRequest("POST", registerURL, bytes.NewBufferString(data.Encode()))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Referer", registerURL)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		log.Errorf("Register failed: %v", err)
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	var registerResp APIResponse
+	if err := json.Unmarshal(body, &registerResp); err != nil {
+		return err
+	}
+
+	if !registerResp.Success {
+		return fmt.Errorf("register failed")
+	}
+
+	return nil
 }
 
 func (c *Client) GetUserInfo() (*UserInfo, error) {

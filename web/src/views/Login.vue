@@ -8,12 +8,18 @@
 
       <el-tabs v-model="activeTab">
         <el-tab-pane label="登录" name="login">
-          <el-form :model="loginForm" :rules="rules" ref="loginRef" label-width="0">
+          <el-form :model="loginForm" :rules="loginRules" ref="loginRef" label-width="0">
             <el-form-item prop="username">
               <el-input v-model="loginForm.username" placeholder="用户名" prefix-icon="User" size="large" />
             </el-form-item>
             <el-form-item prop="password">
               <el-input v-model="loginForm.password" type="password" placeholder="密码" prefix-icon="Lock" size="large" show-password @keyup.enter="handleLogin" />
+            </el-form-item>
+            <el-form-item>
+              <div class="options">
+                <el-checkbox v-model="autoLogin">自动登录</el-checkbox>
+                <el-checkbox v-model="savePassword">记住密码</el-checkbox>
+              </div>
             </el-form-item>
             <el-form-item>
               <el-button type="primary" size="large" style="width: 100%" @click="handleLogin" :loading="loading">
@@ -28,11 +34,20 @@
             <el-form-item prop="username">
               <el-input v-model="registerForm.username" placeholder="用户名" prefix-icon="User" size="large" />
             </el-form-item>
+            <el-form-item prop="email">
+              <el-input v-model="registerForm.email" placeholder="邮箱" prefix-icon="Message" size="large" />
+            </el-form-item>
             <el-form-item prop="password">
               <el-input v-model="registerForm.password" type="password" placeholder="密码" prefix-icon="Lock" size="large" show-password />
             </el-form-item>
-            <el-form-item prop="confirmPassword">
-              <el-input v-model="registerForm.confirmPassword" type="password" placeholder="确认密码" prefix-icon="Lock" size="large" show-password @keyup.enter="handleRegister" />
+            <el-form-item prop="password_confirm">
+              <el-input v-model="registerForm.password_confirm" type="password" placeholder="确认密码" prefix-icon="Lock" size="large" show-password @keyup.enter="handleRegister" />
+            </el-form-item>
+            <el-form-item prop="gender">
+              <el-radio-group v-model="registerForm.gender">
+                <el-radio label="Male">男</el-radio>
+                <el-radio label="Female">女</el-radio>
+              </el-radio-group>
             </el-form-item>
             <el-form-item>
               <el-button type="primary" size="large" style="width: 100%" @click="handleRegister" :loading="loading">
@@ -51,9 +66,9 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { login } from '../api'
+import { login, register } from '../api'
 import { ElMessage } from 'element-plus'
 
 const router = useRouter()
@@ -61,19 +76,25 @@ const activeTab = ref('login')
 const loading = ref(false)
 const loginRef = ref(null)
 const registerRef = ref(null)
+const autoLogin = ref(false)
+const savePassword = ref(true)
 
 const loginForm = ref({ username: '', password: '' })
-const registerForm = ref({ username: '', password: '', confirmPassword: '' })
+const registerForm = ref({ username: '', email: '', password: '', password_confirm: '', gender: 'Male' })
 
-const rules = {
+const loginRules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
 }
 
 const registerRules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+  email: [
+    { required: true, message: '请输入邮箱', trigger: 'blur' },
+    { type: 'email', message: '邮箱格式不正确', trigger: 'blur' }
+  ],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
-  confirmPassword: [
+  password_confirm: [
     { required: true, message: '请确认密码', trigger: 'blur' },
     {
       validator: (rule, value, callback) => {
@@ -88,13 +109,34 @@ const registerRules = {
   ]
 }
 
+onMounted(() => {
+  // 恢复保存的用户名
+  const savedUsername = localStorage.getItem('saved_username')
+  if (savedUsername) {
+    loginForm.value.username = savedUsername
+  }
+  const savedPassword = localStorage.getItem('saved_password')
+  if (savedPassword) {
+    loginForm.value.password = savedPassword
+  }
+})
+
 const handleLogin = async () => {
   await loginRef.value.validate()
   loading.value = true
   try {
     const data = await login(loginForm.value.username, loginForm.value.password)
     localStorage.setItem('token', data.token)
-    localStorage.setItem('username', loginForm.value.username)
+    localStorage.setItem('username', data.username || loginForm.value.username)
+
+    if (savePassword.value) {
+      localStorage.setItem('saved_username', loginForm.value.username)
+      localStorage.setItem('saved_password', loginForm.value.password)
+    } else {
+      localStorage.removeItem('saved_username')
+      localStorage.removeItem('saved_password')
+    }
+
     ElMessage.success('登录成功')
     router.push('/')
   } catch (e) {
@@ -108,7 +150,13 @@ const handleRegister = async () => {
   await registerRef.value.validate()
   loading.value = true
   try {
-    // 注册接口
+    await register(
+      registerForm.value.username,
+      registerForm.value.email,
+      registerForm.value.password,
+      registerForm.value.password_confirm,
+      registerForm.value.gender
+    )
     ElMessage.success('注册成功，请登录')
     activeTab.value = 'login'
     loginForm.value.username = registerForm.value.username
@@ -158,6 +206,11 @@ const handleGuest = () => {
 .logo p {
   color: #999;
   font-size: 14px;
+}
+
+.options {
+  display: flex;
+  gap: 20px;
 }
 
 .guest-link {

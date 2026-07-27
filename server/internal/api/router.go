@@ -74,6 +74,7 @@ func (r *Router) setupRoutes() {
 
 		// 用户
 		api.POST("/login", r.Login)
+		api.POST("/register", r.Register)
 		api.GET("/user/info", r.GetUserInfo)
 		api.POST("/user/sign", r.Sign)
 

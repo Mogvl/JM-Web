@@ -29,7 +29,7 @@ type JMComicConfig struct {
 func Load() *Config {
 	return &Config{
 		Server: ServerConfig{
-			Port: getEnv("PORT", "5000"),
+			Port: getEnv("PORT", "5002"),
 		},
 		Database: DatabaseConfig{
 			Path: getEnv("DB_PATH", "./data/jmcomic.db"),
@@ -38,7 +38,7 @@ func Load() *Config {
 			Dir: getEnv("DOWNLOAD_DIR", "./data/downloads"),
 		},
 		JMComic: JMComicConfig{
-			BaseURL: getEnv("JM_BASE_URL", "https://jmcomic.me"),
+			BaseURL: getEnv("JM_BASE_URL", "https://www.cdnhjk.net"),
 			Auth:    getEnv("JM_AUTH", ""),
 		},
 	}

@@ -273,7 +273,34 @@ func (r *Router) Login(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"token": token})
+	c.JSON(http.StatusOK, gin.H{"token": token, "username": req.Username})
+}
+
+func (r *Router) Register(c *gin.Context) {
+	var req struct {
+		Username        string `json:"username" binding:"required"`
+		Email           string `json:"email" binding:"required"`
+		Password        string `json:"password" binding:"required"`
+		PasswordConfirm string `json:"password_confirm" binding:"required"`
+		Gender          string `json:"gender"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid params"})
+		return
+	}
+
+	if req.Gender == "" {
+		req.Gender = "Male"
+	}
+
+	err := r.client.Register(req.Username, req.Email, req.Password, req.PasswordConfirm, req.Gender)
+	if err != nil {
+		log.Errorf("Register failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Register failed"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Register success"})
 }
 
 func (r *Router) GetUserInfo(c *gin.Context) {
