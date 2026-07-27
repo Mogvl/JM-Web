@@ -14,7 +14,6 @@ import (
 func (r *Router) Search(c *gin.Context) {
 	query := c.Query("q")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	sort := c.DefaultQuery("sort", "")
 
 	if query == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "q is required"})
