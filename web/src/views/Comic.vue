@@ -5,17 +5,21 @@
       <div class="info">
         <h1>{{ comic.title }}</h1>
         <p v-if="comic.author">作者: {{ comic.author }}</p>
+        <p v-if="comic.category">分类: {{ comic.category }}</p>
+        <p v-if="comic.status">状态: {{ comic.status }}</p>
         <p v-if="comic.tags && comic.tags.length">标签: {{ comic.tags.join(', ') }}</p>
-        <p v-if="comic.description">{{ comic.description }}</p>
+        <p v-if="comic.description" class="desc">{{ comic.description }}</p>
         <div class="actions">
           <el-button type="primary" @click="toggleFavorite">{{ isFav ? '取消收藏' : '收藏' }}</el-button>
           <el-button @click="startDownload">下载</el-button>
         </div>
       </div>
     </div>
-    <h2>章节列表</h2>
+    <h2>章节列表 ({{ chapters.length }})</h2>
     <div class="chapters">
-      <el-button v-for="ch in chapters" :key="ch.id" @click="$router.push(`/read/${$route.params.id}/${ch.id}`)">{{ ch.title }}</el-button>
+      <el-button v-for="ch in chapters" :key="ch.id" @click="$router.push(`/read/${$route.params.id}/${ch.id}`)">
+        {{ ch.title }}
+      </el-button>
     </div>
   </div>
   <div v-else class="loading">加载中...</div>
@@ -66,8 +70,9 @@ const startDownload = async () => {
 .header { display: flex; gap: 30px; margin-bottom: 40px; }
 .cover { width: 250px; height: 350px; object-fit: cover; border-radius: 8px; }
 .info h1 { font-size: 28px; margin-bottom: 15px; }
-.info p { margin-bottom: 10px; color: #666; }
+.info p { margin-bottom: 8px; color: #666; }
+.desc { margin-top: 10px; line-height: 1.6; }
 .actions { margin-top: 20px; display: flex; gap: 12px; }
-.chapters { display: flex; flex-wrap: wrap; gap: 10px; }
+.chapters { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
 .loading { text-align: center; padding: 100px 0; color: #999; }
 </style>

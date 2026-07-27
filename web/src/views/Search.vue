@@ -1,8 +1,8 @@
 <template>
   <div class="search">
-    <h2>搜索: {{ $route.query.q }}</h2>
+    <h2 v-if="$route.query.q">搜索: {{ $route.query.q }}</h2>
     <div v-if="loading" class="loading">加载中...</div>
-    <div v-else-if="items.length === 0" class="empty">没有找到漫画</div>
+    <div v-else-if="items.length === 0" class="empty">{{ $route.query.q ? '没有找到漫画' : '请输入关键词搜索' }}</div>
     <div v-else class="grid">
       <el-card v-for="comic in items" :key="comic.id" @click="$router.push(`/comic/${comic.id}`)" class="card">
         <img :src="comic.cover_url" :alt="comic.title" class="cover" />
@@ -28,6 +28,7 @@ const page = ref(1)
 const totalPages = ref(1)
 
 const doSearch = async () => {
+  if (!route.query.q) return
   loading.value = true
   try {
     const data = await search(route.query.q, page.value)
