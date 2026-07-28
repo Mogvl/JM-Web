@@ -75,7 +75,7 @@ services:
       - JM_BASE_URL=https://www.cdnhjk.net
       - TZ=Asia/Shanghai
     volumes:
-      - /volume1/JM:/data/downloads
+      - /volume1/jm:/data/downloads
       - /volume1/docker/JM:/data
     restart: unless-stopped
 ```
