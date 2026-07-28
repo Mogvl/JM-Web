@@ -1,19 +1,19 @@
 <template>
   <div class="category">
-    <el-tabs v-model="activeTab" @tab-change="onTabChange" class="cat-tabs">
-      <el-tab-pane label="标题" name="titles" />
-      <el-tab-pane v-for="cat in categories" :key="cat.id" :label="cat.name" :name="cat.id" />
-    </el-tabs>
-
-    <div v-if="activeTab === 'titles'">
-      <div class="title-tags">
-        <el-tag v-for="cat in categories" :key="cat.id" @click="switchToCategory(cat.id)" class="tag" effect="plain" size="large">{{ cat.name }}</el-tag>
-      </div>
+    <div class="cat-buttons">
+      <el-button :type="activeTab === 'titles' ? 'primary' : 'default'" @click="switchTab('titles')">标题</el-button>
+      <el-button v-for="cat in categories" :key="cat.id" :type="activeTab === cat.id ? 'primary' : 'default'" @click="switchTab(cat.id)">{{ cat.name }}</el-button>
     </div>
 
+    <!-- 标题页 -->
+    <div v-if="activeTab === 'titles'" class="title-tags">
+      <el-tag v-for="cat in categories" :key="cat.id" @click="switchCategory(cat.id)" class="tag" effect="plain" size="large">{{ cat.name }}</el-tag>
+    </div>
+
+    <!-- 分类内容页 -->
     <template v-else>
       <div class="controls">
-        <el-select v-model="sort" @change="loadData(1)" style="width: 120px">
+        <el-select v-model="sort" @change="loadData" style="width:120px">
           <el-option label="最新" value="mr" />
           <el-option label="总排行" value="mv" />
           <el-option label="月排行" value="mv_m" />
@@ -22,9 +22,9 @@
           <el-option label="最多图片" value="mp" />
           <el-option label="最多爱心" value="tf" />
         </el-select>
-        <span class="page-info">页：{{ page }}/{{ totalPages }}</span>
+        <span class="page-info">页：{{ page }}/{{ totalPages || 1 }}</span>
         <el-input-number v-model="jumpPage" :min="1" :max="totalPages||1" size="small" style="width:70px" />
-        <el-button size="small" @click="jump">跳转</el-button>
+        <el-button size="small" @click="jumpPageGo">跳转</el-button>
       </div>
 
       <div v-if="loading" class="loading">加载中...</div>
@@ -52,43 +52,57 @@ const page = ref(1)
 const totalPages = ref(1)
 const jumpPage = ref(1)
 
-const loadData = async (p) => {
+const loadData = async () => {
   if (activeTab.value === 'titles') return
   loading.value = true
-  page.value = p || page.value
   try {
     const data = await getCategoryFilter(activeTab.value, sort.value, page.value)
     items.value = data.items || []
     totalPages.value = data.total_pages || 1
-  } catch (e) { items.value = [] }
-  finally { loading.value = false }
+  } catch (e) {
+    console.error('Load category failed:', e)
+    items.value = []
+  } finally {
+    loading.value = false
+  }
 }
 
-const onTabChange = (tab) => {
-  if (tab !== 'titles') loadData(1)
+const switchTab = (tab) => {
+  activeTab.value = tab
+  if (tab === 'titles') return
+  page.value = 1
+  jumpPage.value = 1
+  loadData()
 }
 
-const switchToCategory = (id) => {
+const switchCategory = (id) => {
   activeTab.value = id
   page.value = 1
-  loadData(1)
+  jumpPage.value = 1
+  loadData()
 }
 
-const jump = () => {
-  if (jumpPage.value >= 1) loadData(jumpPage.value)
+const jumpPageGo = () => {
+  page.value = jumpPage.value
+  loadData()
 }
 
 onMounted(async () => {
-  try { categories.value = await getCategories() } catch (e) { categories.value = [] }
+  try {
+    const data = await getCategories()
+    categories.value = data || []
+  } catch (e) {
+    console.error('Get categories failed:', e)
+  }
 })
 </script>
 
 <style scoped>
-.cat-tabs { margin-bottom: 10px; }
-.title-tags { display: flex; flex-wrap: wrap; gap: 12px; padding: 10px 0; }
+.cat-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.title-tags { display: flex; flex-wrap: wrap; gap: 12px; }
 .tag { cursor: pointer; font-size: 15px; padding: 8px 18px; }
 .tag:hover { color: #409eff; border-color: #409eff; }
-.controls { display: flex; align-items: center; gap: 12px; margin: 15px 0; }
+.controls { display: flex; align-items: center; gap: 12px; margin: 15px 0; flex-wrap: wrap; }
 .page-info { font-size: 14px; color: #666; }
 .loading, .empty { text-align: center; padding: 80px 0; color: #999; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; }
