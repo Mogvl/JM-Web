@@ -4,6 +4,8 @@ const api = axios.create({ baseURL: '/api', timeout: 30000 })
 
 // 浏览
 export const search = (q, page = 1) => api.get('/search', { params: { q, page } }).then(r => r.data)
+export const getIndex = (page = 0) => api.get('/index', { params: { page } }).then(r => r.data)
+export const getLatest = (page = 0) => api.get('/latest', { params: { page } }).then(r => r.data)
 export const getComic = (id) => api.get(`/comic/${id}`).then(r => r.data)
 export const getChapters = (id) => api.get(`/comic/${id}/chapters`).then(r => r.data)
 export const getImages = (chapterId) => api.get(`/chapter/${chapterId}`).then(r => r.data)

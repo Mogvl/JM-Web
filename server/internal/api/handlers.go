@@ -210,6 +210,32 @@ func (r *Router) ClearDownloads(c *gin.Context) {
 
 // ==================== 排行榜 ====================
 
+func (r *Router) GetIndex(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "0"))
+
+	result, err := r.client.GetIndexInfo(page)
+	if err != nil {
+		log.Errorf("Get index failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed"})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+func (r *Router) GetLatest(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "0"))
+
+	result, err := r.client.GetLatest(page)
+	if err != nil {
+		log.Errorf("Get latest failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed"})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
 func (r *Router) GetRanking(c *gin.Context) {
 	rankType := c.DefaultQuery("type", "daily")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))

@@ -298,7 +298,75 @@ func (c *Client) GetCategories() ([]CategoryItem, error) {
 	return items, nil
 }
 
-func (c *Client) GetRanking(rankType string, page int) (*SearchResult, error) {
+func (c *Client) GetIndexInfo(page int) (*SearchResult, error) {
+	if page < 1 {
+		page = 0
+	}
+
+	indexURL := fmt.Sprintf("%s/promote?page=%d", c.baseURL, page)
+
+	body, err := c.doRequest(indexURL)
+	if err != nil {
+		log.Errorf("Get index info failed: %v", err)
+		return nil, err
+	}
+
+	return c.parseComicList(body, page)
+}
+
+func (c *Client) GetLatest(page int) (*SearchResult, error) {
+	if page < 1 {
+		page = 0
+	}
+
+	latestURL := fmt.Sprintf("%s/latest?page=%d", c.baseURL, page)
+
+	body, err := c.doRequest(latestURL)
+	if err != nil {
+		log.Errorf("Get latest failed: %v", err)
+		return nil, err
+	}
+
+	return c.parseComicList(body, page)
+}
+
+func (c *Client) parseComicList(body []byte, page int) (*SearchResult, error) {
+	var resp APIResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, err
+	}
+
+	dataBytes, _ := json.Marshal(resp.Data)
+	var searchData SearchData
+	if err := json.Unmarshal(dataBytes, &searchData); err != nil {
+		return nil, err
+	}
+
+	results := make([]ComicItem, len(searchData.List))
+	for i, item := range searchData.List {
+		author := ""
+		if len(item.Author) > 0 {
+			author = item.Author[0].Name
+		}
+		results[i] = ComicItem{
+			ID:       item.PathWord,
+			Title:    item.Name,
+			Author:   author,
+			CoverURL: item.Cover,
+		}
+	}
+
+	totalPages := 1
+	if searchData.Limit > 0 {
+		totalPages = (searchData.Total + searchData.Limit - 1) / searchData.Limit
+	}
+
+	return &SearchResult{
+		Items:      results,
+		TotalPages: totalPages,
+		Page:       page + 1,
+	}, nil
+}
 	if page < 1 {
 		page = 1
 	}

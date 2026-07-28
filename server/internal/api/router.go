@@ -46,11 +46,13 @@ func (r *Router) setupRoutes() {
 	{
 		// 浏览
 		api.GET("/search", r.Search)
+		api.GET("/index", r.GetIndex)
+		api.GET("/latest", r.GetLatest)
+		api.GET("/ranking", r.GetRanking)
 		api.GET("/comic/:id", r.GetComic)
 		api.GET("/comic/:id/chapters", r.GetChapters)
 		api.GET("/chapter/:id", r.GetChapterImages)
 		api.GET("/categories", r.GetCategories)
-		api.GET("/ranking", r.GetRanking)
 
 		// 评论
 		api.GET("/comic/:id/comments", r.GetComments)
