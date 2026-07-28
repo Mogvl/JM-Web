@@ -567,6 +567,31 @@ func (c *Client) GetOnlineFavorites(page int) (*SearchResult, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// 尝试直接解析 {code, data: {total, count, list}}
+	var favResp struct {
+		Code int `json:"code"`
+		Data struct {
+			Total      json.Number        `json:"total"`
+			Count      json.Number        `json:"count"`
+			List       []json.RawMessage   `json:"list"`
+			FolderList []struct {
+				Name string `json:"name"`
+				FID  string `json:"FID"`
+			} `json:"folder_list"`
+		} `json:"data"`
+	}
+	if json.Unmarshal(body, &favResp) == nil && favResp.Code == 200 {
+		items := make([]ComicItem, len(favResp.Data.List))
+		for i, item := range favResp.Data.List {
+			var raw RawComicItem
+			if json.Unmarshal(item, &raw) == nil {
+				items[i] = rawToComicItem(raw)
+			}
+		}
+		return &SearchResult{Items: items, TotalPages: 1, Page: page}, nil
+	}
+
 	return c.parseAnyList(body, page)
 }
 
