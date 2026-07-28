@@ -65,6 +65,6 @@ watch(() => route.params.chapterId, loadImages)
 .reader-bar.bottom { margin-bottom: 0; margin-top: 16px; justify-content: center; }
 .chapter-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
 .nav-btns { display: flex; gap: 8px; }
-.image-stream { display: flex; flex-direction: column; align-items: center; gap: 4px; background: var(--bg-base); border-radius: var(--radius-md); padding: 16px; }
+.image-stream { display: flex; flex-direction: column; align-items: center; gap: 4px; background: var(--bg-surface); border-radius: var(--radius-md); padding: 16px; }
 .image-stream img { max-width: 100%; border-radius: var(--radius-sm); }
 </style>

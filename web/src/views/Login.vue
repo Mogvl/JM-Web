@@ -126,9 +126,9 @@ const handleGuest = () => {
 </script>
 
 <style scoped>
-.auth-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg-base); position: relative; overflow: hidden; }
-.auth-page::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle at 30% 40%, rgba(255,77,109,0.08) 0%, transparent 50%), radial-gradient(circle at 70% 60%, rgba(99,102,241,0.06) 0%, transparent 50%); }
-.auth-card { position: relative; width: 400px; padding: 40px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-hover); }
+.auth-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #F5F6F8 0%, #EBEDF0 100%); position: relative; overflow: hidden; }
+.auth-page::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle at 30% 40%, rgba(255,77,109,0.1) 0%, transparent 50%), radial-gradient(circle at 70% 60%, rgba(99,102,241,0.08) 0%, transparent 50%); }
+.auth-card { position: relative; width: 400px; padding: 40px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: 0 12px 40px rgba(0,0,0,0.08); }
 .auth-header { text-align: center; margin-bottom: 28px; }
 .auth-title { font-size: 32px; font-weight: 700; color: var(--accent); letter-spacing: -0.5px; }
 .auth-subtitle { margin-top: 6px; color: var(--text-muted); font-size: 14px; }
