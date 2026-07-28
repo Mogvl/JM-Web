@@ -195,7 +195,7 @@ func (c *Client) Search(query string, page int) (*SearchResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	return c.parseComicList(body, page)
+	return c.parseAnyList(body, page)
 }
 
 func (c *Client) GetIndexInfo(page int) (*SearchResult, error) {
@@ -203,7 +203,7 @@ func (c *Client) GetIndexInfo(page int) (*SearchResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	return c.parseComicList(body, page+1)
+	return c.parseAnyList(body, page+1)
 }
 
 func (c *Client) GetLatest(page int) (*SearchResult, error) {
@@ -211,14 +211,20 @@ func (c *Client) GetLatest(page int) (*SearchResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	return c.parseComicList(body, page+1)
+	return c.parseAnyList(body, page+1)
 }
 
 func (c *Client) GetComicDetail(comicID string) (*ComicDetail, error) {
-	body, err := c.doRequest("/api/comic/" + comicID)
+	body, err := c.get("/album", map[string]string{
+		"id":        comicID,
+		"comicName": "",
+	})
 	if err != nil {
 		return nil, err
 	}
+
+	log.Infof("Comic detail raw: %s", string(body[:min(500, len(body))]))
+
 	var resp struct {
 		Code int             `json:"code"`
 		Data json.RawMessage `json:"data"`
@@ -227,30 +233,40 @@ func (c *Client) GetComicDetail(comicID string) (*ComicDetail, error) {
 		return nil, err
 	}
 
+	// 检查是否为数组格式
+	var dataArr []ComicDetailData
+	if err := json.Unmarshal(resp.Data, &dataArr); err == nil && len(dataArr) > 0 {
+		return c.convertDetail(&dataArr[0]), nil
+	}
+
 	var detail ComicDetailData
 	if err := json.Unmarshal(resp.Data, &detail); err != nil {
 		return nil, err
 	}
+	return c.convertDetail(&detail), nil
+}
 
-	author := ""
-	if len(detail.Author) > 0 {
-		author = detail.Author[0].Name
+func (c *Client) convertDetail(detail *ComicDetailData) *ComicDetail {
+	author := parseAuthor(detail.Author)
+	tags := parseTags(detail.Tags)
+	comicID := detail.PathWord
+	if comicID == "" {
+		comicID = detail.ID.String()
 	}
-	tags := make([]string, len(detail.Tags))
-	for i, t := range detail.Tags {
-		tags[i] = t.Name
+	coverURL := detail.Cover
+	if coverURL == "" {
+		coverURL = detail.Image
 	}
-
 	return &ComicDetail{
-		ID:          detail.PathWord,
+		ID:          comicID,
 		Title:       detail.Name,
 		Author:      author,
 		Description: detail.Description,
-		CoverURL:    detail.Cover,
+		CoverURL:    coverURL,
 		Tags:        tags,
 		Category:    detail.Category,
 		Status:      detail.Status,
-	}, nil
+	}
 }
 
 func (c *Client) GetChapters(comicID string) ([]ChapterItem, error) {
@@ -338,7 +354,7 @@ func (c *Client) GetRanking(rankType string, page int) (*SearchResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	return c.parseComicList(body, page)
+	return c.parseAnyList(body, page)
 }
 
 func (c *Client) GetComments(comicID string, page int) ([]CommentItem, error) {
@@ -473,6 +489,86 @@ func (c *Client) Sign() error {
 
 // ==================== 解析通用漫画列表 ====================
 
+func parseAuthor(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	if raw[0] == '[' {
+		var authors []Author
+		if json.Unmarshal(raw, &authors) == nil && len(authors) > 0 {
+			return authors[0].Name
+		}
+		var strArr []string
+		if json.Unmarshal(raw, &strArr) == nil && len(strArr) > 0 {
+			return strArr[0]
+		}
+	} else {
+		var author string
+		if json.Unmarshal(raw, &author) == nil {
+			return author
+		}
+	}
+	return ""
+}
+
+func parseTags(raw json.RawMessage) []string {
+	if len(raw) == 0 {
+		return nil
+	}
+	var strTags []string
+	if json.Unmarshal(raw, &strTags) == nil {
+		return strTags
+	}
+	var objTags []Tag
+	if json.Unmarshal(raw, &objTags) == nil {
+		tags := make([]string, len(objTags))
+		for i, t := range objTags {
+			tags[i] = t.Name
+		}
+		return tags
+	}
+	return nil
+}
+
+func (c *Client) parseAnyList(body []byte, page int) (*SearchResult, error) {
+	// 尝试用标准格式解析
+	result, err := c.parseComicList(body, page)
+	if err == nil {
+		return result, nil
+	}
+	// 尝试用数组格式解析
+	var arrResp struct {
+		Code int               `json:"code"`
+		Data []json.RawMessage `json:"data"`
+	}
+	if json.Unmarshal(body, &arrResp) == nil {
+		items := make([]ComicItem, 0)
+		for _, item := range arrResp.Data {
+			var raw RawComicItem
+			if json.Unmarshal(item, &raw) != nil {
+				continue
+			}
+			author := parseAuthor(raw.Author)
+			comicID := raw.PathWord
+			if comicID == "" {
+				comicID = raw.ID.String()
+			}
+			coverURL := raw.Cover
+			if coverURL == "" {
+				coverURL = raw.Image
+			}
+			items = append(items, ComicItem{
+				ID:       comicID,
+				Title:    raw.Name,
+				Author:   author,
+				CoverURL: coverURL,
+			})
+		}
+		return &SearchResult{Items: items, TotalPages: 1, Page: page}, nil
+	}
+	return result, err
+}
+
 func (c *Client) parseComicList(body []byte, page int) (*SearchResult, error) {
 	var resp struct {
 		Code int             `json:"code"`
@@ -489,21 +585,11 @@ func (c *Client) parseComicList(body []byte, page int) (*SearchResult, error) {
 
 	results := make([]ComicItem, len(searchData.List))
 	for i, item := range searchData.List {
-		author := ""
-		if len(item.Author) > 0 {
-			if item.Author[0] == '[' {
-				var authors []Author
-				if json.Unmarshal(item.Author, &authors) == nil && len(authors) > 0 {
-					author = authors[0].Name
-				}
-			} else {
-				json.Unmarshal(item.Author, &author)
-			}
-		}
+		author := parseAuthor(item.Author)
 		// 兼容 path_word/id 和 cover/image
 		comicID := item.PathWord
 		if comicID == "" {
-			comicID = item.ID
+			comicID = item.ID.String()
 		}
 		coverURL := item.Cover
 		if coverURL == "" {

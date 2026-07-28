@@ -17,7 +17,7 @@ type SearchData struct {
 type RawComicItem struct {
 	Name     string          `json:"name"`
 	PathWord string          `json:"path_word"`
-	ID       string          `json:"id"`
+	ID       json.Number     `json:"id"`
 	Cover    string          `json:"cover"`
 	Image    string          `json:"image"`
 	Author   json.RawMessage `json:"author"`
@@ -29,14 +29,16 @@ type Author struct {
 }
 
 type ComicDetailData struct {
-	Name        string   `json:"name"`
-	PathWord    string   `json:"path_word"`
-	Cover       string   `json:"cover"`
-	Description string   `json:"description"`
-	Author      []Author `json:"author"`
-	Tags        []Tag    `json:"tags"`
-	Category    string   `json:"category"`
-	Status      string   `json:"status"`
+	Name        string          `json:"name"`
+	PathWord    string          `json:"path_word"`
+	ID          json.Number     `json:"id"`
+	Cover       string          `json:"cover"`
+	Image       string          `json:"image"`
+	Description string          `json:"description"`
+	Author      json.RawMessage `json:"author"`
+	Tags        json.RawMessage `json:"tags"`
+	Category    string          `json:"category"`
+	Status      string          `json:"status"`
 }
 
 type Tag struct {
