@@ -70,14 +70,17 @@ func (r *Router) GetChapterImages(c *gin.Context) {
 }
 
 func (r *Router) GetCategories(c *gin.Context) {
-	categories, err := r.client.GetCategories()
+	categories, blocks, err := r.client.GetCategories()
 	if err != nil {
 		log.Errorf("Get categories failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get categories"})
 		return
 	}
 
-	c.JSON(http.StatusOK, categories)
+	c.JSON(http.StatusOK, gin.H{
+		"categories": categories,
+		"blocks":     blocks,
+	})
 }
 
 func (r *Router) GetCategoryFilter(c *gin.Context) {

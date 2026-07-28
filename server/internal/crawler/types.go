@@ -47,14 +47,31 @@ type Tag struct {
 }
 
 type CategoryData struct {
-	ID       json.Number `json:"id"`
-	Name     string      `json:"name"`
-	PathWord string      `json:"slug"`
+	ID            json.Number   `json:"id"`
+	Name          string        `json:"name"`
+	PathWord      string        `json:"slug"`
+	Type          string        `json:"type"`
+	TotalAlbums   string        `json:"total_albums"`
+	SubCategories []SubCategory `json:"sub_categories"`
+}
+
+type SubCategory struct {
+	CID  string `json:"CID"`
+	Name string `json:"name"`
+	Slug string `json:"slug"`
 }
 
 type CategoryItem struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID             string         `json:"id"`
+	Name           string         `json:"name"`
+	Type           string         `json:"type"`
+	TotalAlbums    string         `json:"total_albums"`
+	SubCategories  []SubCategory  `json:"sub_categories"`
+}
+
+type CategoryBlock struct {
+	Title   string   `json:"title"`
+	Content []string `json:"content"`
 }
 
 type CommentData struct {

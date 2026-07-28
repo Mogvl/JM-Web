@@ -346,35 +346,42 @@ func (c *Client) GetChapterImages(chapterID string) ([]string, error) {
 	return nil, fmt.Errorf("no images found")
 }
 
-func (c *Client) GetCategories() ([]CategoryItem, error) {
+func (c *Client) GetCategories() ([]CategoryItem, []CategoryBlock, error) {
 	body, err := c.get("/categories", nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var resp struct {
 		Data json.RawMessage `json:"data"`
 	}
 	if json.Unmarshal(body, &resp) != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var dataObj struct {
-		Categories json.RawMessage `json:"categories"`
+		Categories []CategoryData `json:"categories"`
+		Blocks     []CategoryBlock `json:"blocks"`
 	}
-	if json.Unmarshal(resp.Data, &dataObj) != nil {
-		var cats []CategoryData
-		if json.Unmarshal(resp.Data, &cats) == nil {
-			return toCategoryItems(cats), nil
-		}
-		return nil, err
+	if err := json.Unmarshal(resp.Data, &dataObj); err != nil {
+		return nil, nil, err
 	}
 
-	var cats []CategoryData
-	if err := json.Unmarshal(dataObj.Categories, &cats); err != nil {
-		return nil, err
+	items := make([]CategoryItem, len(dataObj.Categories))
+	for i, cat := range dataObj.Categories {
+		id := cat.PathWord
+		if id == "" {
+			id = cat.ID.String()
+		}
+		items[i] = CategoryItem{
+			ID:            id,
+			Name:          cat.Name,
+			Type:          cat.Type,
+			TotalAlbums:   cat.TotalAlbums,
+			SubCategories: cat.SubCategories,
+		}
 	}
-	return toCategoryItems(cats), nil
+	return items, dataObj.Blocks, nil
 }
 
 func (c *Client) GetCategoryFilter(category, sort string, page int) (*SearchResult, error) {
