@@ -490,8 +490,12 @@ func (c *Client) GetComments(comicID string, page int) ([]CommentItem, error) {
 }
 
 func (c *Client) Login(username, password string) (*LoginUserData, error) {
+	// 登录请求不带之前的 auth token
+	savedAuth := c.auth
+	c.auth = ""
 	body, err := c.doPostForm("/login", url.Values{"username": {username}, "password": {password}})
 	if err != nil {
+		c.auth = savedAuth
 		return nil, err
 	}
 
