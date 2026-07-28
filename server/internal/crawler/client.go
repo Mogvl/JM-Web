@@ -483,13 +483,27 @@ func (c *Client) GetSubComments(commentID string, page int) ([]CommentItem, erro
 	return items, nil
 }
 
-func (c *Client) Login(username, password string) (string, error) {
+type LoginUserData struct {
+	UID           string `json:"uid"`
+	Username      string `json:"username"`
+	Email         string `json:"email"`
+	Photo         string `json:"photo"`
+	Gender        string `json:"gender"`
+	Coin          int    `json:"coin"`
+	Level         int    `json:"level"`
+	LevelName     string `json:"level_name"`
+	Exp           string `json:"exp"`
+	AlbumFavorites int   `json:"album_favorites"`
+	JWTToken      string `json:"jwttoken"`
+}
+
+func (c *Client) Login(username, password string) (*LoginUserData, error) {
 	body, err := c.doPost("/login", url.Values{
 		"username": {username},
 		"password": {password},
 	})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	var loginResp struct {
@@ -498,27 +512,24 @@ func (c *Client) Login(username, password string) (string, error) {
 		ErrorMsg string          `json:"errorMsg"`
 	}
 	if err := json.Unmarshal(body, &loginResp); err != nil {
-		return "", fmt.Errorf("parse failed: %s", string(body))
+		return nil, fmt.Errorf("parse failed: %s", string(body))
 	}
 
 	if loginResp.Code != 200 {
-		return "", fmt.Errorf("login failed: %s", loginResp.ErrorMsg)
+		return nil, fmt.Errorf("login failed: %s", loginResp.ErrorMsg)
 	}
 
-	// 从 data 中提取 jwttoken
-	var userData struct {
-		JWTToken string `json:"jwttoken"`
-	}
+	var userData LoginUserData
 	if err := json.Unmarshal(loginResp.Data, &userData); err != nil {
-		return "", fmt.Errorf("parse user data failed: %s", string(loginResp.Data))
+		return nil, fmt.Errorf("parse user data failed: %s", string(loginResp.Data))
 	}
 
 	if userData.JWTToken == "" {
-		return "", fmt.Errorf("no token in response")
+		return nil, fmt.Errorf("no token in response")
 	}
 
 	c.auth = "Bearer " + userData.JWTToken
-	return userData.JWTToken, nil
+	return &userData, nil
 }
 
 func (c *Client) Register(username, email, password, passwordConfirm, gender string) error {
@@ -536,22 +547,21 @@ func (c *Client) Register(username, email, password, passwordConfirm, gender str
 }
 
 func (c *Client) GetUserInfo() (*UserInfo, error) {
-	body, err := c.doRequest("/api/user/info")
-	if err != nil {
-		return nil, err
+	// 用户信息从登录响应获取，调用 /user 接口
+	body, err := c.doRequest("/user")
+	if err == nil {
+		var resp struct {
+			Code int             `json:"code"`
+			Data json.RawMessage `json:"data"`
+		}
+		if json.Unmarshal(body, &resp) == nil && resp.Code == 200 {
+			var userInfo UserInfo
+			if json.Unmarshal(resp.Data, &userInfo) == nil {
+				return &userInfo, nil
+			}
+		}
 	}
-	var resp struct {
-		Code int             `json:"code"`
-		Data json.RawMessage `json:"data"`
-	}
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, err
-	}
-	var userInfo UserInfo
-	if err := json.Unmarshal(resp.Data, &userInfo); err != nil {
-		return nil, err
-	}
-	return &userInfo, nil
+	return nil, fmt.Errorf("not logged in")
 }
 
 func (c *Client) Sign() error {
@@ -628,6 +638,9 @@ func (c *Client) parseAnyList(body []byte, page int) (*SearchResult, error) {
 			coverURL := raw.Cover
 			if coverURL == "" {
 				coverURL = raw.Image
+			}
+			if coverURL == "" {
+				coverURL = buildCoverURL(comicID)
 			}
 			items = append(items, ComicItem{
 				ID:       comicID,

@@ -128,6 +128,11 @@ const handleLogin = async () => {
     const data = await login(loginForm.value.username, loginForm.value.password)
     localStorage.setItem('token', data.token)
     localStorage.setItem('username', data.username || loginForm.value.username)
+    localStorage.setItem('coins', String(data.coins || 0))
+    localStorage.setItem('level', String(data.level || 0))
+    localStorage.setItem('level_name', data.level_name || '')
+    localStorage.setItem('avatar', data.avatar || '')
+    localStorage.setItem('favorites', String(data.favorites || 0))
 
     if (savePassword.value) {
       localStorage.setItem('saved_username', loginForm.value.username)

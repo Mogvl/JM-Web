@@ -6,7 +6,8 @@
         <div class="user-info">
           <div class="username">{{ username }}</div>
           <div class="coins">J Coins: {{ userInfo.coins || 0 }}</div>
-          <div class="level">等级: {{ userInfo.level || 0 }}</div>
+          <div class="level">等级: {{ userInfo.level_name || userInfo.level }}</div>
+          <div class="favorites">收藏数: {{ userInfo.favorites }}</div>
         </div>
         <div class="user-actions">
           <el-button v-if="username !== '游客'" type="success" size="small" @click="handleSign">签到</el-button>
@@ -71,29 +72,32 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Star, Clock, ChatDotRound, ChatLineSquare, HomeFilled, Search, Grid, Trophy, Calendar, Download, FolderOpened, Setting, QuestionFilled, Connection, MagicStick, Upload, Folder, List, FullScreen } from '@element-plus/icons-vue'
-import { getUserInfo, sign } from './api'
+import { sign } from './api'
 import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const searchQuery = ref('')
 const username = ref(localStorage.getItem('username') || '游客')
-const userInfo = ref({})
+const userInfo = ref({
+  coins: parseInt(localStorage.getItem('coins') || '0'),
+  level: parseInt(localStorage.getItem('level') || '0'),
+  level_name: localStorage.getItem('level_name') || '',
+  avatar: localStorage.getItem('avatar') || '',
+  favorites: parseInt(localStorage.getItem('favorites') || '0')
+})
 
 const doSearch = () => {
   if (searchQuery.value.trim()) router.push({ path: '/search', query: { q: searchQuery.value.trim() } })
 }
 
 const handleSign = async () => {
-  try { await sign(); ElMessage.success('签到成功'); loadUserInfo() } catch (e) { ElMessage.error('签到失败') }
+  try { await sign(); ElMessage.success('签到成功') } catch (e) { ElMessage.error('签到失败') }
 }
 
-const handleLogout = () => { localStorage.removeItem('token'); localStorage.removeItem('username'); router.push('/login') }
-
-const loadUserInfo = async () => {
-  try { userInfo.value = await getUserInfo() } catch (e) { }
+const handleLogout = () => {
+  localStorage.clear()
+  router.push('/login')
 }
-
-onMounted(() => { if (username.value !== '游客') loadUserInfo() })
 </script>
 
 <style>

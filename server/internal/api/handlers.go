@@ -292,14 +292,22 @@ func (r *Router) Login(c *gin.Context) {
 		return
 	}
 
-	token, err := r.client.Login(req.Username, req.Password)
+	userData, err := r.client.Login(req.Username, req.Password)
 	if err != nil {
 		log.Errorf("Login failed: %v", err)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Login failed"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"token": token, "username": req.Username})
+	c.JSON(http.StatusOK, gin.H{
+		"token":    userData.JWTToken,
+		"username": userData.Username,
+		"coins":    userData.Coin,
+		"level":    userData.Level,
+		"level_name": userData.LevelName,
+		"avatar":    userData.Photo,
+		"favorites": userData.AlbumFavorites,
+	})
 }
 
 func (r *Router) Register(c *gin.Context) {

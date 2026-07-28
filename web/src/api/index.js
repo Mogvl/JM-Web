@@ -34,9 +34,6 @@ export const clearDownloads = () => api.delete('/downloads')
 
 // 用户
 export const login = (username, password) => api.post('/login', { username, password }).then(r => r.data)
-export const register = (username, email, password, password_confirm, gender) => api.post('/register', { username, email, password, password_confirm, gender }).then(r => r.data)
-export const getUserInfo = () => api.get('/user/info').then(r => r.data)
-export const sign = () => api.post('/user/sign')
 
 // 帮助
 export const getHelp = () => api.get('/help').then(r => r.data)
