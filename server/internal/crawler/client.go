@@ -267,7 +267,7 @@ func parseAlbum(raw json.RawMessage) (*AlbumDetail, error) {
 		Description string          `json:"description"`
 		Series      []struct {
 			ID   json.Number `json:"id"`
-			Sort int         `json:"sort"`
+			Sort json.Number `json:"sort"`
 			Name string      `json:"name"`
 		} `json:"series"`
 		TotalPhotos  int    `json:"total_photos"`
@@ -294,8 +294,9 @@ func parseAlbum(raw json.RawMessage) (*AlbumDetail, error) {
 
 	if len(rawAlbum.Series) > 0 {
 		for _, s := range rawAlbum.Series {
+			sortInt, _ := strconv.Atoi(s.Sort.String())
 			detail.Chapters = append(detail.Chapters, ChapterItem{
-				ID: s.ID.String(), Title: s.Name, SortOrder: s.Sort,
+				ID: s.ID.String(), Title: s.Name, SortOrder: sortInt,
 			})
 		}
 	} else {
