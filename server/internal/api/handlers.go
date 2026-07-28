@@ -378,7 +378,31 @@ func (r *Router) Sign(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Signed"})
 }
 
-// ==================== 帮助 ====================
+// ==================== 每周必看 ====================
+
+func (r *Router) GetWeekCategories(c *gin.Context) {
+	cats, err := r.client.GetWeekCategories()
+	if err != nil {
+		log.Errorf("Get week categories failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed"})
+		return
+	}
+	c.JSON(http.StatusOK, cats)
+}
+
+func (r *Router) GetWeekFilter(c *gin.Context) {
+	id := c.Query("id")
+	catType := c.DefaultQuery("type", "manga")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "0"))
+
+	result, err := r.client.GetWeekFilter(id, catType, page)
+	if err != nil {
+		log.Errorf("Get week filter failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed"})
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
 
 func (r *Router) GetHelp(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{

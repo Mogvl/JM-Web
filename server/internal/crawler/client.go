@@ -421,6 +421,41 @@ func (c *Client) GetCategoryFilter(category, sort string, page int) (*SearchResu
 	return c.parseAnyList(body, page)
 }
 
+func (c *Client) GetWeekCategories() ([]WeekCategory, error) {
+	body, err := c.get("/week", map[string]string{"page": "0"})
+	if err != nil {
+		return nil, err
+	}
+
+	var resp struct {
+		Code int             `json:"code"`
+		Data json.RawMessage `json:"data"`
+	}
+	if json.Unmarshal(body, &resp) != nil || resp.Code != 200 {
+		return nil, fmt.Errorf("week failed")
+	}
+
+	var data struct {
+		Categories []WeekCategory `json:"categories"`
+	}
+	if err := json.Unmarshal(resp.Data, &data); err != nil {
+		return nil, err
+	}
+	return data.Categories, nil
+}
+
+func (c *Client) GetWeekFilter(id, catType string, page int) (*SearchResult, error) {
+	body, err := c.get("/week/filter", map[string]string{
+		"page": fmt.Sprintf("%d", page),
+		"id":   id,
+		"type": catType,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return c.parseAnyList(body, page+1)
+}
+
 func (c *Client) GetComments(comicID string, page int) ([]CommentItem, error) {
 	body, err := c.get("/api/comic/"+comicID+"/comments", map[string]string{
 		"offset": fmt.Sprintf("%d", (page-1)*20), "limit": "20",

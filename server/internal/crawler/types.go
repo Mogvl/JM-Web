@@ -119,3 +119,9 @@ type CategoryBlock struct {
 	Title   string   `json:"title"`
 	Content []string `json:"content"`
 }
+
+type WeekCategory struct {
+	ID    json.Number `json:"id"`
+	Time  string      `json:"time"`
+	Title string      `json:"title"`
+}

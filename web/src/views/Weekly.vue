@@ -1,17 +1,67 @@
 <template>
-  <div class="weekly">
-    <h2>每周更新</h2>
-    <div v-if="loading" class="loading">加载中...</div>
-    <div v-else class="empty">功能开发中...</div>
+  <div class="week-page">
+    <!-- 顶部：周选择 + 更新提示 -->
+    <div class="week-header">
+      <el-select v-model="selectedWeek" @change="loadData" placeholder="选择周期" class="week-select">
+        <el-option v-for="(cat, i) in weekCategories" :key="i" :label="cat.time + ' - ' + cat.title" :value="cat.id" />
+      </el-select>
+      <span class="update-tip">每周五 18:00更新</span>
+    </div>
+
+    <!-- 日漫/韩漫/其他 标签页 -->
+    <el-tabs v-model="activeType" @tab-change="loadData" class="week-tabs">
+      <el-tab-pane label="日漫" name="manga" />
+      <el-tab-pane label="韩漫" name="hanman" />
+      <el-tab-pane label="其他" name="another" />
+    </el-tabs>
+
+    <!-- 漫画列表 -->
+    <div v-if="loading" class="loading-state">加载中...</div>
+    <div v-else-if="items.length === 0" class="empty-state">暂无数据</div>
+    <div v-else class="comic-grid">
+      <div v-for="comic in items" :key="comic.id" class="comic-card" @click="$router.push(`/comic/${comic.id}`)">
+        <img :src="comic.cover_url" :alt="comic.title" loading="lazy" />
+        <div class="card-title">{{ comic.title }}</div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { getWeekCategories, getWeekFilter } from '../api'
+
+const weekCategories = ref([])
+const selectedWeek = ref('')
+const activeType = ref('manga')
+const items = ref([])
 const loading = ref(false)
+
+const loadData = async () => {
+  if (!selectedWeek.value) return
+  loading.value = true
+  try {
+    const data = await getWeekFilter(selectedWeek.value, activeType.value, 0)
+    items.value = data.items || []
+  } catch (e) { items.value = [] }
+  finally { loading.value = false }
+}
+
+onMounted(async () => {
+  try {
+    const cats = await getWeekCategories()
+    weekCategories.value = cats || []
+    if (weekCategories.value.length > 0) {
+      selectedWeek.value = weekCategories.value[0].id
+      loadData()
+    }
+  } catch (e) { weekCategories.value = [] }
+})
 </script>
 
 <style scoped>
-.weekly h2 { margin-bottom: 20px; }
-.loading, .empty { text-align: center; padding: 100px 0; color: #999; }
+.week-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+.week-select { width: 360px; }
+.update-tip { font-size: 13px; color: var(--text-muted); }
+.week-tabs { margin-bottom: 20px; }
 </style>
