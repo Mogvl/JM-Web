@@ -51,7 +51,7 @@ type CategoryData struct {
 	Name          string        `json:"name"`
 	PathWord      string        `json:"slug"`
 	Type          string        `json:"type"`
-	TotalAlbums   string        `json:"total_albums"`
+	TotalAlbums   json.Number   `json:"total_albums"`
 	SubCategories []SubCategory `json:"sub_categories"`
 }
 
@@ -67,11 +67,6 @@ type CategoryItem struct {
 	Type           string         `json:"type"`
 	TotalAlbums    string         `json:"total_albums"`
 	SubCategories  []SubCategory  `json:"sub_categories"`
-}
-
-type CategoryBlock struct {
-	Title   string   `json:"title"`
-	Content []string `json:"content"`
 }
 
 type CommentData struct {
@@ -118,4 +113,9 @@ type LoginUserData struct {
 	Exp           string `json:"exp"`
 	AlbumFavorites int   `json:"album_favorites"`
 	JWTToken      string `json:"jwttoken"`
+}
+
+type CategoryBlock struct {
+	Title   string   `json:"title"`
+	Content []string `json:"content"`
 }

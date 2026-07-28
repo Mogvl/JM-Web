@@ -377,7 +377,7 @@ func (c *Client) GetCategories() ([]CategoryItem, []CategoryBlock, error) {
 			ID:            id,
 			Name:          cat.Name,
 			Type:          cat.Type,
-			TotalAlbums:   cat.TotalAlbums,
+			TotalAlbums:   cat.TotalAlbums.String(),
 			SubCategories: cat.SubCategories,
 		}
 	}
