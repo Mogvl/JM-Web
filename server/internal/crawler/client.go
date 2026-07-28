@@ -463,8 +463,47 @@ func (c *Client) GetOnlineHistory(page int) (*SearchResult, error) {
 
 // ==================== Stubs ====================
 
-func (c *Client) GetIndexInfo(page int) (*SearchResult, error) {
-	return c.GetLatest(page)
+func (c *Client) GetIndexInfo(page int) (map[string][]ComicItem, error) {
+	body, err := c.get("/promote", map[string]string{"page": fmt.Sprintf("%d", page)})
+	if err != nil {
+		return nil, err
+	}
+
+	var resp struct {
+		Code int             `json:"code"`
+		Data json.RawMessage `json:"data"`
+	}
+	if json.Unmarshal(body, &resp) != nil || resp.Code != 200 {
+		return nil, fmt.Errorf("promote failed")
+	}
+
+	// 尝试 {bookInfo: {cat: [{id,name,author,image}]}}
+	var promoteResp struct {
+		BookInfo map[string][]struct {
+			ID     json.Number    `json:"id"`
+			Name   string         `json:"name"`
+			Author json.RawMessage `json:"author"`
+			Image  string         `json:"image"`
+		} `json:"bookInfo"`
+	}
+	if json.Unmarshal(resp.Data, &promoteResp) == nil && promoteResp.BookInfo != nil {
+		result := make(map[string][]ComicItem)
+		for name, items := range promoteResp.BookInfo {
+			comics := make([]ComicItem, len(items))
+			for i, item := range items {
+				comics[i] = ComicItem{
+					ID:       item.ID.String(),
+					Title:    item.Name,
+					Author:   parseAuthor(item.Author),
+					CoverURL: buildCoverURL(item.ID.String()),
+				}
+			}
+			result[name] = comics
+		}
+		return result, nil
+	}
+
+	return nil, fmt.Errorf("no bookInfo")
 }
 
 func (c *Client) GetRanking(rankType string, page int) (*SearchResult, error) {

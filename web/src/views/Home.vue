@@ -1,10 +1,12 @@
 <template>
   <div class="home">
+    <!-- 分类切换按钮 -->
     <div class="cat-buttons">
       <el-button :type="activeTab === 'latest' ? 'primary' : 'default'" @click="switchTab('latest')">最新上传</el-button>
-      <el-button v-for="(cats, name) in promoteMap" :key="name" :type="activeTab === name ? 'primary' : 'default'" @click="switchPromote(name)">{{ name }}</el-button>
+      <el-button v-for="(items, name) in promoteMap" :key="name" :type="activeTab === name ? 'primary' : 'default'" @click="switchTab(name)">{{ name }}</el-button>
     </div>
 
+    <!-- 漫画网格 -->
     <div v-if="loading" class="loading"><el-icon class="is-loading"><Loading /></el-icon> 加载中...</div>
     <div v-else-if="items.length === 0" class="empty">暂无数据</div>
     <div v-else class="grid">
@@ -14,6 +16,7 @@
       </div>
     </div>
 
+    <!-- 分页 -->
     <div v-if="activeTab === 'latest'" class="pagination-bar">
       <el-pagination v-model:current-page="page" :total="9999" :page-size="20" layout="prev, pager, next" @current-change="loadLatest" />
     </div>
@@ -40,27 +43,30 @@ const loadLatest = async () => {
   finally { loading.value = false }
 }
 
-const switchTab = (tab) => {
-  activeTab.value = tab
-  if (tab === 'latest') {
-    loadLatest()
-  }
-}
-
-const switchPromote = (name) => {
+const switchTab = (name) => {
   activeTab.value = name
-  items.value = promoteMap.value[name] || []
+  if (name === 'latest') {
+    loadLatest()
+  } else {
+    items.value = promoteMap.value[name] || []
+  }
 }
 
 onMounted(async () => {
   await loadLatest()
-  // 加载推广分类
+  // 加载推荐分类
   try {
     const data = await getIndex(0)
-    if (data.items && data.items.length > 0) {
-      promoteMap.value = { '推荐': data.items }
+    if (data && typeof data === 'object') {
+      const map = {}
+      for (const [key, val] of Object.entries(data)) {
+        if (Array.isArray(val) && val.length > 0) {
+          map[key] = val
+        }
+      }
+      promoteMap.value = map
     }
-  } catch (e) {}
+  } catch (e) { console.error(e) }
 })
 </script>
 

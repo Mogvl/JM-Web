@@ -224,14 +224,18 @@ func (r *Router) ClearDownloads(c *gin.Context) {
 func (r *Router) GetIndex(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "0"))
 
-	result, err := r.client.GetIndexInfo(page)
+	promoteMap, err := r.client.GetIndexInfo(page)
 	if err != nil {
-		log.Errorf("Get index failed: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed"})
+		result, err2 := r.client.GetLatest(page)
+		if err2 != nil {
+			c.JSON(http.StatusOK, gin.H{"latest": []interface{}{}})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"latest": result.Items})
 		return
 	}
 
-	c.JSON(http.StatusOK, result)
+	c.JSON(http.StatusOK, promoteMap)
 }
 
 func (r *Router) GetLatest(c *gin.Context) {
