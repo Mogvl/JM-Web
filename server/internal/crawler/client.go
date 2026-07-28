@@ -177,12 +177,16 @@ func (c *Client) Search(query string, page int, sort string) (*SearchResult, err
 	if page < 1 {
 		page = 1
 	}
-	offset := (page - 1) * 20
-	body, err := c.get("/api/search", map[string]string{
-		"query":  query,
-		"offset": fmt.Sprintf("%d", offset),
-		"limit":  "20",
-	})
+	params := map[string]string{
+		"search_query": query,
+	}
+	if page > 1 {
+		params["page"] = fmt.Sprintf("%d", page)
+	}
+	if sort != "" {
+		params["o"] = sort
+	}
+	body, err := c.get("/search", params)
 	if err != nil {
 		return nil, err
 	}
