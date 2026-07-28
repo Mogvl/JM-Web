@@ -11,14 +11,15 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 )
 
 const (
-	appVersion    = "2.0.28"
-	appSecret     = "185Hcomic3PAPP7R"
+	appVersion    = "2.0.21"
+	appSecret     = "18comicAPP"
 	appDataSecret = "185Hcomic3PAPP7R"
 )
 
@@ -77,7 +78,8 @@ func (c *Client) decryptData(data string) (string, error) {
 		return "", err
 	}
 	param := fmt.Sprintf("%d%s", c.ts, appDataSecret)
-	key := fmt.Sprintf("%x", md5.Sum([]byte(param)))[:16]
+	keyBytes := md5.Sum([]byte(param))
+	key := fmt.Sprintf("%x", keyBytes) // full 32 hex chars = 32 bytes
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
 		return "", err
@@ -135,23 +137,33 @@ func (c *Client) executeRequest(req *http.Request, method string) ([]byte, error
 		return nil, err
 	}
 
+	// 检查是否需要解密
 	var rawResp struct {
-		Code     int    `json:"code"`
-		Data     string `json:"data"`
-		ErrorMsg string `json:"errorMsg"`
+		Code     int             `json:"code"`
+		Data     json.RawMessage `json:"data"`
+		ErrorMsg string          `json:"errorMsg"`
 	}
 	if err := json.Unmarshal(body, &rawResp); err != nil {
+		log.Debugf("Unmarshal failed: %v, body=%s", err, string(body[:min(100, len(body))]))
 		return body, nil
 	}
-	if rawResp.Code == 200 && rawResp.Data != "" && len(rawResp.Data) > 50 {
-		decrypted, err := c.decryptData(rawResp.Data)
-		if err != nil {
-			log.Warnf("decrypt failed: %v", err)
-			return body, nil
+	if rawResp.Code == 200 && len(rawResp.Data) > 50 {
+		var dataStr string
+		if err := json.Unmarshal(rawResp.Data, &dataStr); err == nil && len(dataStr) > 50 {
+			log.Debugf("Attempting decrypt, data len=%d", len(dataStr))
+			decrypted, err := c.decryptData(dataStr)
+			if err != nil {
+				log.Warnf("decrypt failed: %v", err)
+				return body, nil
+			}
+			log.Infof("Decrypted: %s", decrypted[:min(200, len(decrypted))])
+			// 处理数组格式
+			trimmed := strings.TrimSpace(decrypted)
+			if strings.HasPrefix(trimmed, "[") {
+				decrypted = `{"list":` + decrypted + `,"total":0,"limit":20,"offset":0}`
+			}
+			return []byte(fmt.Sprintf(`{"code":200,"data":%s,"errorMsg":""}`, decrypted)), nil
 		}
-		rawResp.Data = decrypted
-		modified, _ := json.Marshal(rawResp)
-		return modified, nil
 	}
 	return body, nil
 }
@@ -479,13 +491,29 @@ func (c *Client) parseComicList(body []byte, page int) (*SearchResult, error) {
 	for i, item := range searchData.List {
 		author := ""
 		if len(item.Author) > 0 {
-			author = item.Author[0].Name
+			if item.Author[0] == '[' {
+				var authors []Author
+				if json.Unmarshal(item.Author, &authors) == nil && len(authors) > 0 {
+					author = authors[0].Name
+				}
+			} else {
+				json.Unmarshal(item.Author, &author)
+			}
+		}
+		// 兼容 path_word/id 和 cover/image
+		comicID := item.PathWord
+		if comicID == "" {
+			comicID = item.ID
+		}
+		coverURL := item.Cover
+		if coverURL == "" {
+			coverURL = item.Image
 		}
 		results[i] = ComicItem{
-			ID:       item.PathWord,
+			ID:       comicID,
 			Title:    item.Name,
 			Author:   author,
-			CoverURL: item.Cover,
+			CoverURL: coverURL,
 		}
 	}
 

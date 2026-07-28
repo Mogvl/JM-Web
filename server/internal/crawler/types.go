@@ -1,5 +1,7 @@
 package crawler
 
+import "encoding/json"
+
 type APIResponse struct {
 	Data    interface{} `json:"data"`
 	Success bool        `json:"success"`
@@ -13,10 +15,12 @@ type SearchData struct {
 }
 
 type RawComicItem struct {
-	Name     string   `json:"name"`
-	PathWord string   `json:"path_word"`
-	Cover    string   `json:"cover"`
-	Author   []Author `json:"author"`
+	Name     string          `json:"name"`
+	PathWord string          `json:"path_word"`
+	ID       string          `json:"id"`
+	Cover    string          `json:"cover"`
+	Image    string          `json:"image"`
+	Author   json.RawMessage `json:"author"`
 }
 
 type Author struct {
