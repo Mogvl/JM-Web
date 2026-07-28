@@ -18,7 +18,7 @@
         <el-menu-item-group>
           <template #title>用户</template>
           <el-menu-item index="/favorites"><el-icon><Star /></el-icon><span>收藏</span></el-menu-item>
-          <el-menu-item index="/local-favorites"><el-icon><FolderStar /></el-icon><span>本地收藏</span></el-menu-item>
+          <el-menu-item index="/local-favorites"><el-icon><Folder /></el-icon><span>本地收藏</span></el-menu-item>
           <el-menu-item index="/history"><el-icon><Clock /></el-icon><span>历史</span></el-menu-item>
           <el-menu-item index="/remote-history"><el-icon><Upload /></el-icon><span>远程历史</span></el-menu-item>
           <el-menu-item index="/comments"><el-icon><ChatDotRound /></el-icon><span>我的评论</span></el-menu-item>
@@ -70,7 +70,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Star, Clock, ChatDotRound, ChatLineSquare, HomeFilled, Search, Grid, Trophy, Calendar, Download, FolderOpened, Setting, QuestionFilled, Connection, MagicStick, Upload, FolderStar, List, FullScreen } from '@element-plus/icons-vue'
+import { Star, Clock, ChatDotRound, ChatLineSquare, HomeFilled, Search, Grid, Trophy, Calendar, Download, FolderOpened, Setting, QuestionFilled, Connection, MagicStick, Upload, Folder, List, FullScreen } from '@element-plus/icons-vue'
 import { getUserInfo, sign } from './api'
 import { ElMessage } from 'element-plus'
 
