@@ -39,7 +39,7 @@ export const deleteHistory = (id) => api.delete(`/history/${id}`)
 export const clearHistory = () => api.delete('/history')
 
 // 下载
-export const createDownload = (comic_id) => api.post('/download', { comic_id })
+export const createDownload = (comic_id, info = {}) => api.post('/download', { comic_id, ...info })
 export const getDownloads = () => api.get('/downloads').then(r => r.data)
 export const deleteDownload = (id) => api.delete(`/download/${id}`)
 export const clearDownloads = () => api.delete('/downloads')

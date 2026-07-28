@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/Mogvl/JM-Web/server/internal/model"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 )
@@ -180,11 +181,22 @@ func (r *Router) ClearHistory(c *gin.Context) {
 func (r *Router) CreateDownload(c *gin.Context) {
 	var req struct {
 		ComicID string `json:"comic_id" binding:"required"`
+		Title   string `json:"title"`
+		Author  string `json:"author"`
+		Cover   string `json:"cover"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "comic_id required"})
 		return
 	}
+
+	// 保存漫画信息到数据库
+	r.db.SaveComic(&model.Comic{
+		ID:       req.ComicID,
+		Title:    req.Title,
+		Author:   req.Author,
+		CoverURL: req.Cover,
+	})
 
 	dl, err := r.db.CreateDownload(req.ComicID)
 	if err != nil {

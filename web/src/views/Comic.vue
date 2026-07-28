@@ -122,7 +122,11 @@ const toggleFavorite = async () => {
 }
 
 const startDownload = async () => {
-  await createDownload(route.params.id)
+  await createDownload(route.params.id, {
+    title: comic.value.title,
+    author: comic.value.author,
+    cover: comic.value.cover_url,
+  })
   ElMessage.success('下载任务已创建')
   router.push('/downloads')
 }

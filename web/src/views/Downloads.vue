@@ -1,21 +1,30 @@
 <template>
-  <div class="downloads">
+  <div class="downloads-page">
     <div class="header">
       <h2>下载管理</h2>
-      <el-button type="danger" @click="handleClear">清空下载</el-button>
+      <el-button type="danger" plain @click="handleClear" :disabled="!list.length">清空下载</el-button>
     </div>
-    <div v-if="loading" class="loading">加载中...</div>
-    <div v-else-if="list.length === 0" class="empty">没有下载任务</div>
+
+    <div v-if="loading" class="loading-state">加载中...</div>
+    <div v-else-if="list.length === 0" class="empty-state">没有下载任务</div>
     <div v-else class="list">
-      <el-card v-for="dl in list" :key="dl.id" class="item">
+      <el-card v-for="dl in list" :key="dl.id" class="item" shadow="never">
         <div class="content">
           <img :src="dl.comic?.cover_url" class="cover" />
           <div class="info">
-            <h3>{{ dl.comic?.title }}</h3>
-            <el-progress :percentage="dl.progress" :status="dl.status === 'completed' ? 'success' : dl.status === 'failed' ? 'exception' : undefined" />
-            <p class="status">{{ statusText(dl.status) }} ({{ dl.downloaded || 0 }}/{{ dl.total_pages || 0 }})</p>
+            <h3 class="comic-title">{{ dl.comic?.title || `漫画 ${dl.comic_id}` }}</h3>
+            <div class="progress-row">
+              <el-progress :percentage="dl.progress" :status="progressStatus(dl.status)" :stroke-width="8" />
+            </div>
+            <p class="status">
+              <el-tag :type="statusType(dl.status)" size="small" effect="light">{{ statusText(dl.status) }}</el-tag>
+              <span class="page-count">{{ dl.downloaded || 0 }}/{{ dl.total_pages || 0 }} 页</span>
+            </p>
           </div>
-          <el-button type="danger" text @click="handleDelete(dl.id)">删除</el-button>
+          <div class="actions">
+            <el-button v-if="dl.status === 'completed'" type="primary" size="small" plain @click="readDownload(dl)">阅读</el-button>
+            <el-button type="danger" size="small" text @click="handleDelete(dl.id)">删除</el-button>
+          </div>
         </div>
       </el-card>
     </div>
@@ -23,14 +32,31 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { getDownloads, deleteDownload, clearDownloads } from '../api'
 import { ElMessage } from 'element-plus'
 
+const router = useRouter()
 const list = ref([])
 const loading = ref(true)
+let timer = null
 
 const statusText = (s) => ({ pending: '等待中', downloading: '下载中', completed: '已完成', failed: '失败' }[s] || s)
+const statusType = (s) => ({ pending: 'info', downloading: 'warning', completed: 'success', failed: 'danger' }[s] || 'info')
+const progressStatus = (s) => s === 'completed' ? 'success' : s === 'failed' ? 'exception' : undefined
+
+const loadList = async () => {
+  try { list.value = await getDownloads() || [] } catch (e) { list.value = [] }
+  finally { loading.value = false }
+  // 下载中时自动刷新
+  if (list.value.some(d => d.status === 'downloading' || d.status === 'pending')) {
+    if (!timer) timer = setInterval(loadList, 2000)
+  } else if (timer) {
+    clearInterval(timer)
+    timer = null
+  }
+}
 
 const handleDelete = async (id) => {
   await deleteDownload(id)
@@ -44,19 +70,31 @@ const handleClear = async () => {
   ElMessage.success('已清空')
 }
 
-onMounted(async () => {
-  list.value = await getDownloads()
-  loading.value = false
-})
+const readDownload = (dl) => {
+  router.push(`/comic/${dl.comic_id}`)
+}
+
+onMounted(loadList)
+onUnmounted(() => { if (timer) clearInterval(timer) })
 </script>
 
 <style scoped>
-.downloads .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.loading, .empty { text-align: center; padding: 100px 0; color: #999; }
-.list { display: flex; flex-direction: column; gap: 16px; }
-.item .content { display: flex; align-items: center; gap: 16px; }
-.cover { width: 80px; height: 100px; object-fit: cover; border-radius: 4px; }
-.info { flex: 1; }
-.info h3 { margin-bottom: 12px; }
-.status { color: #999; font-size: 14px; margin-top: 8px; }
+.downloads-page .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.list { display: flex; flex-direction: column; gap: 12px; }
+.item { border-radius: var(--radius-md); }
+.item :deep(.el-card__body) { padding: 16px; }
+.content { display: flex; align-items: center; gap: 16px; }
+.cover { width: 64px; height: 88px; object-fit: cover; border-radius: var(--radius-sm); background: var(--bg-elevated); flex-shrink: 0; }
+.info { flex: 1; min-width: 0; }
+.comic-title { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.progress-row { margin-bottom: 8px; }
+.status { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); }
+.page-count { color: var(--text-muted); }
+.actions { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+
+@media (max-width: 768px) {
+  .content { gap: 10px; }
+  .cover { width: 48px; height: 66px; }
+  .actions { flex-direction: row; }
+}
 </style>
