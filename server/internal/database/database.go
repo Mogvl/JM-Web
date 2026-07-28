@@ -154,3 +154,7 @@ func (db *DB) ClearDownloads() error {
 func (db *DB) SetDownloadPath(id int, path string) error {
 	return db.Model(&model.Download{}).Where("id = ?", id).Update("file_path", path).Error
 }
+
+func (db *DB) SetDownloadTotal(id int, total int) error {
+	return db.Model(&model.Download{}).Where("id = ?", id).Update("total_pages", total).Error
+}
