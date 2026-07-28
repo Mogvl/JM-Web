@@ -1,8 +1,12 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/Mogvl/JM-Web/server/internal/model"
 	"github.com/gin-gonic/gin"
@@ -443,21 +447,67 @@ func (r *Router) processDownload(downloadID int, comicID string) {
 		return
 	}
 
+	// 创建下载目录: {DOWNLOAD_DIR}/{漫画标题}_{id}/
+	safeTitle := sanitizeFilename(comic.Title)
+	if safeTitle == "" {
+		safeTitle = comicID
+	}
+	comicDir := filepath.Join(r.config.Download.Dir, safeTitle+"_"+comicID)
+	if err := os.MkdirAll(comicDir, 0755); err != nil {
+		log.Errorf("Create download dir failed: %v", err)
+		r.db.UpdateDownload(downloadID, "failed", 0, 0)
+		return
+	}
+
 	totalChapters := len(chapters)
+	downloadedImgs := 0
 	for i, chapter := range chapters {
 		progress := (i * 100) / totalChapters
-		r.db.UpdateDownload(downloadID, "downloading", progress, i)
+		r.db.UpdateDownload(downloadID, "downloading", progress, downloadedImgs)
 
-		_, err := r.client.GetChapterImages(chapter.ID)
+		images, err := r.client.GetChapterImages(chapter.ID)
 		if err != nil {
-			log.Errorf("Download chapter %s failed: %v", chapter.ID, err)
+			log.Errorf("Get chapter %s images failed: %v", chapter.ID, err)
 			continue
 		}
 
-		log.Infof("Downloaded chapter %s for comic %s", chapter.ID, comic.Title)
+		// 每章一个子目录
+		chapterDir := filepath.Join(comicDir, fmt.Sprintf("%02d_%s", i+1, sanitizeFilename(chapter.Title)))
+		os.MkdirAll(chapterDir, 0755)
+
+		for j, imgURL := range images {
+			if imgURL == "" {
+				continue
+			}
+			ext := ".jpg"
+			if strings.HasSuffix(imgURL, ".png") {
+				ext = ".png"
+			} else if strings.HasSuffix(imgURL, ".webp") {
+				ext = ".webp"
+			} else if strings.HasSuffix(imgURL, ".gif") {
+				ext = ".gif"
+			}
+			imgPath := filepath.Join(chapterDir, fmt.Sprintf("%03d%s", j+1, ext))
+			if err := r.client.DownloadImage(imgURL, imgPath); err != nil {
+				log.Warnf("Download image %s failed: %v", imgURL, err)
+				continue
+			}
+			downloadedImgs++
+		}
+		log.Infof("Downloaded chapter %s (%d images) for %s", chapter.ID, len(images), comic.Title)
 	}
 
-	r.db.UpdateDownload(downloadID, "completed", 100, totalChapters)
+	r.db.UpdateDownload(downloadID, "completed", 100, downloadedImgs)
+	r.db.SetDownloadPath(downloadID, comicDir)
+	log.Infof("Download completed: %s -> %s", comic.Title, comicDir)
+}
+
+func sanitizeFilename(name string) string {
+	name = strings.TrimSpace(name)
+	for _, ch := range `<>:"/\|?*` {
+		name = strings.ReplaceAll(name, string(ch), "_")
+	}
+	return name
 }
 
 func joinStrings(strs []string) string {

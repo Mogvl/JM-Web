@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 )
@@ -454,6 +455,28 @@ func (c *Client) GetWeekFilter(id, catType string, page int) (*SearchResult, err
 		return nil, err
 	}
 	return c.parseAnyList(body, page+1)
+}
+
+func (c *Client) DownloadImage(imgURL, savePath string) error {
+	req, err := http.NewRequest("GET", imgURL, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+	req.Header.Set("Referer", c.baseURL)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("status %d", resp.StatusCode)
+	}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(savePath, data, 0644)
 }
 
 func (c *Client) GetComments(comicID string, page int) ([]CommentItem, error) {

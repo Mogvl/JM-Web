@@ -150,3 +150,7 @@ func (db *DB) DeleteDownload(id int) error {
 func (db *DB) ClearDownloads() error {
 	return db.Where("1 = 1").Delete(&model.Download{}).Error
 }
+
+func (db *DB) SetDownloadPath(id int, path string) error {
+	return db.Model(&model.Download{}).Where("id = ?", id).Update("file_path", path).Error
+}
