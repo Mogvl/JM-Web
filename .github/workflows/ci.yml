@@ -15,11 +15,7 @@ jobs:
       - working-directory: ./server
         run: |
           go mod download
-          CGO_ENABLED=1 go build -o ../server-binary ./cmd/main.go
-      - uses: actions/upload-artifact@v4
-        with:
-          name: server-binary
-          path: server-binary
+          go build -o /tmp/server-binary ./cmd/main.go
 
   build-web:
     runs-on: ubuntu-latest
@@ -32,10 +28,6 @@ jobs:
         run: npm ci
       - working-directory: ./web
         run: npm run build
-      - uses: actions/upload-artifact@v4
-        with:
-          name: web-dist
-          path: web/dist
 
   docker:
     runs-on: ubuntu-latest
@@ -45,14 +37,6 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: server-binary
-          path: ./server
-      - uses: actions/download-artifact@v4
-        with:
-          name: web-dist
-          path: ./web/dist
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
