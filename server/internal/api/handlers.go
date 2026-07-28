@@ -108,20 +108,31 @@ func (r *Router) GetCategoryFilter(c *gin.Context) {
 // ==================== 收藏 ====================
 
 func (r *Router) GetFavorites(c *gin.Context) {
-	// 先从本地获取
-	favorites, err := r.db.GetFavorites()
-	if err == nil && len(favorites) > 0 {
-		c.JSON(http.StatusOK, favorites)
-		return
-	}
-	// 再从在线获取
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+
+	// 在线获取收藏
 	online, err := r.client.GetOnlineFavorites(page)
 	if err != nil {
 		c.JSON(http.StatusOK, []interface{}{})
 		return
 	}
-	c.JSON(http.StatusOK, online.Items)
+
+	// 转换为前端格式: {id, comic_id, comic: {title, cover_url}}
+	result := make([]map[string]interface{}, len(online.Items))
+	for i, item := range online.Items {
+		result[i] = map[string]interface{}{
+			"id":       i + 1,
+			"comic_id": item.ID,
+			"comic": map[string]string{
+				"id":        item.ID,
+				"title":     item.Title,
+				"author":    item.Author,
+				"cover_url": item.CoverURL,
+			},
+			"created_at": "",
+		}
+	}
+	c.JSON(http.StatusOK, result)
 }
 
 func (r *Router) AddFavorite(c *gin.Context) {
@@ -155,12 +166,30 @@ func (r *Router) RemoveFavorite(c *gin.Context) {
 // ==================== 历史 ====================
 
 func (r *Router) GetHistory(c *gin.Context) {
-	history, err := r.db.GetHistory()
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+
+	online, err := r.client.GetOnlineHistory(page)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get history"})
+		c.JSON(http.StatusOK, []interface{}{})
 		return
 	}
-	c.JSON(http.StatusOK, history)
+
+	result := make([]map[string]interface{}, len(online.Items))
+	for i, item := range online.Items {
+		result[i] = map[string]interface{}{
+			"id":          i + 1,
+			"comic_id":    item.ID,
+			"chapter_id":  "",
+			"comic": map[string]string{
+				"id":        item.ID,
+				"title":     item.Title,
+				"author":    item.Author,
+				"cover_url": item.CoverURL,
+			},
+			"last_read_at": "",
+		}
+	}
+	c.JSON(http.StatusOK, result)
 }
 
 func (r *Router) DeleteHistory(c *gin.Context) {

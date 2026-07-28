@@ -39,9 +39,11 @@ func NewClient(baseURL, auth string) *Client {
 }
 
 func (c *Client) SetAuth(token string) {
+	// 去掉 Bearer 前缀，统一处理
 	if strings.HasPrefix(token, "Bearer ") {
-		c.auth = token
-	} else {
+		token = token[7:]
+	}
+	if token != "" && token != "guest" {
 		c.auth = "Bearer " + token
 	}
 }
