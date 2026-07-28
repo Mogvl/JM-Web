@@ -55,8 +55,9 @@ type ImagesData struct {
 }
 
 type CategoryData struct {
-	Name     string `json:"name"`
-	PathWord string `json:"path_word"`
+	ID       json.Number `json:"id"`
+	Name     string      `json:"name"`
+	PathWord string      `json:"slug"`
 }
 
 type CommentData struct {
@@ -82,14 +83,15 @@ type ComicItem struct {
 }
 
 type ComicDetail struct {
-	ID          string   `json:"id"`
-	Title       string   `json:"title"`
-	Author      string   `json:"author"`
-	Description string   `json:"description"`
-	CoverURL    string   `json:"cover_url"`
-	Tags        []string `json:"tags"`
-	Category    string   `json:"category"`
-	Status      string   `json:"status"`
+	ID          string        `json:"id"`
+	Title       string        `json:"title"`
+	Author      string        `json:"author"`
+	Description string        `json:"description"`
+	CoverURL    string        `json:"cover_url"`
+	Tags        []string      `json:"tags"`
+	Category    string        `json:"category"`
+	Status      string        `json:"status"`
+	Chapters    []ChapterItem `json:"chapters"`
 }
 
 type ChapterItem struct {

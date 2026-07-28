@@ -223,7 +223,7 @@ func (c *Client) GetComicDetail(comicID string) (*ComicDetail, error) {
 		return nil, err
 	}
 
-	log.Infof("Comic detail raw: %s", string(body[:min(500, len(body))]))
+	log.Infof("Album raw: %s", string(body[:min(500, len(body))]))
 
 	var resp struct {
 		Code int             `json:"code"`
@@ -233,113 +233,173 @@ func (c *Client) GetComicDetail(comicID string) (*ComicDetail, error) {
 		return nil, err
 	}
 
-	// 检查是否为数组格式
-	var dataArr []ComicDetailData
-	if err := json.Unmarshal(resp.Data, &dataArr); err == nil && len(dataArr) > 0 {
-		return c.convertDetail(&dataArr[0]), nil
+	var dataArr []json.RawMessage
+	if json.Unmarshal(resp.Data, &dataArr) == nil && len(dataArr) > 0 {
+		return c.parseAlbumDetail(dataArr[0], comicID)
 	}
-
-	var detail ComicDetailData
-	if err := json.Unmarshal(resp.Data, &detail); err != nil {
-		return nil, err
-	}
-	return c.convertDetail(&detail), nil
+	return c.parseAlbumDetail(resp.Data, comicID)
 }
 
-func (c *Client) convertDetail(detail *ComicDetailData) *ComicDetail {
-	author := parseAuthor(detail.Author)
-	tags := parseTags(detail.Tags)
-	comicID := detail.PathWord
-	if comicID == "" {
-		comicID = detail.ID.String()
+func (c *Client) parseAlbumDetail(raw json.RawMessage, comicID string) (*ComicDetail, error) {
+	var album struct {
+		ID          json.Number     `json:"id"`
+		Name        string          `json:"name"`
+		Author      json.RawMessage `json:"author"`
+		Tags        json.RawMessage `json:"tags"`
+		Description string          `json:"description"`
+		Series      []struct {
+			ID   json.Number `json:"id"`
+			Sort int         `json:"sort"`
+			Name string      `json:"name"`
+		} `json:"series"`
+		TotalPhotos int    `json:"total_photos"`
+		TotalViews  string `json:"total_views"`
+		Likes       string `json:"likes"`
+		CommentTotal string `json:"comment_total"`
 	}
-	coverURL := detail.Cover
-	if coverURL == "" {
-		coverURL = detail.Image
+	if err := json.Unmarshal(raw, &album); err != nil {
+		return nil, err
 	}
-	return &ComicDetail{
-		ID:          comicID,
-		Title:       detail.Name,
+
+	author := parseAuthor(album.Author)
+	tags := parseTags(album.Tags)
+
+	detail := &ComicDetail{
+		ID:          album.ID.String(),
+		Title:       album.Name,
 		Author:      author,
-		Description: detail.Description,
-		CoverURL:    coverURL,
+		Description: album.Description,
+		CoverURL:    buildCoverURL(album.ID.String()),
 		Tags:        tags,
-		Category:    detail.Category,
-		Status:      detail.Status,
 	}
+
+	// 解析章节
+	for _, s := range album.Series {
+		detail.Chapters = append(detail.Chapters, ChapterItem{
+			ID:        s.ID.String(),
+			Title:     s.Name,
+			SortOrder: s.Sort,
+		})
+	}
+	// 如果没有 series，创建一个默认章节
+	if len(detail.Chapters) == 0 {
+		detail.Chapters = append(detail.Chapters, ChapterItem{
+			ID:        album.ID.String(),
+			Title:     "第1章",
+			SortOrder: 1,
+		})
+	}
+
+	return detail, nil
+}
+
+func buildCoverURL(id string) string {
+	// 封面 URL 格式: /media/albums/{id}_3x4.jpg
+	return fmt.Sprintf("https://cdn-msp.jmapiproxy1.cc/media/albums/%s_3x4.jpg", id)
 }
 
 func (c *Client) GetChapters(comicID string) ([]ChapterItem, error) {
-	body, err := c.doRequest("/api/comic/" + comicID + "/chapters")
+	// 章节信息从漫画详情中获取
+	detail, err := c.GetComicDetail(comicID)
 	if err != nil {
 		return nil, err
 	}
-	var resp struct {
-		Code int             `json:"code"`
-		Data json.RawMessage `json:"data"`
-	}
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, err
-	}
-
-	var chapters []ChapterData
-	if err := json.Unmarshal(resp.Data, &chapters); err != nil {
-		return nil, err
-	}
-
-	items := make([]ChapterItem, len(chapters))
-	for i, ch := range chapters {
-		items[i] = ChapterItem{
-			ID:        ch.PathWord,
-			Title:     ch.Name,
-			SortOrder: i,
-		}
-	}
-	return items, nil
+	return detail.Chapters, nil
 }
 
 func (c *Client) GetChapterImages(chapterID string) ([]string, error) {
-	body, err := c.doRequest("/api/chapter/" + chapterID)
+	// 使用 /chapter_view_template 端点获取图片
+	body, err := c.get("/chapter_view_template", map[string]string{
+		"id":            chapterID,
+		"mode":          "vertical",
+		"page":          "0",
+		"app_img_shunt": "NaN",
+	})
 	if err != nil {
-		return nil, err
+		// 尝试备用端点
+		body2, err2 := c.get("/chapter", map[string]string{
+			"id":        chapterID,
+			"comicName": "",
+			"skip":      "",
+		})
+		if err2 != nil {
+			return nil, err
+		}
+		body = body2
 	}
+
+	// 从 HTML 或 JSON 中提取图片 URL
+	return c.parseChapterImages(body)
+}
+
+func (c *Client) parseChapterImages(body []byte) ([]string, error) {
+	// 尝试 JSON 格式
 	var resp struct {
 		Code int             `json:"code"`
 		Data json.RawMessage `json:"data"`
 	}
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, err
+	if json.Unmarshal(body, &resp) == nil {
+		// 尝试数组格式
+		var images []string
+		if json.Unmarshal(resp.Data, &images) == nil {
+			return images, nil
+		}
+		// 尝试对象格式
+		var imgData struct {
+			Images []string `json:"images"`
+		}
+		if json.Unmarshal(resp.Data, &imgData) == nil {
+			return imgData.Images, nil
+		}
 	}
 
-	var imagesData ImagesData
-	if err := json.Unmarshal(resp.Data, &imagesData); err != nil {
-		return nil, err
-	}
-	return imagesData.Images, nil
+	return nil, fmt.Errorf("no images found")
 }
 
 func (c *Client) GetCategories() ([]CategoryItem, error) {
-	body, err := c.doRequest("/api/categories")
+	body, err := c.doRequest("/categories")
 	if err != nil {
 		return nil, err
 	}
+
+	// 尝试解析: {"code":200,"data":{"categories":[...]},"errorMsg":""}
 	var resp struct {
-		Code int             `json:"code"`
 		Data json.RawMessage `json:"data"`
 	}
 	if err := json.Unmarshal(body, &resp); err != nil {
 		return nil, err
 	}
 
-	var categories []CategoryData
-	if err := json.Unmarshal(resp.Data, &categories); err != nil {
+	// data 是 {"categories": [...]}
+	var dataObj struct {
+		Categories json.RawMessage `json:"categories"`
+	}
+	if err := json.Unmarshal(resp.Data, &dataObj); err != nil {
+		// 尝试直接解析 data 为数组
+		var cats []CategoryData
+		if json.Unmarshal(resp.Data, &cats) == nil {
+			return toCategoryItems(cats), nil
+		}
 		return nil, err
 	}
-	items := make([]CategoryItem, len(categories))
-	for i, cat := range categories {
-		items[i] = CategoryItem{ID: cat.PathWord, Name: cat.Name}
+
+	var cats []CategoryData
+	if err := json.Unmarshal(dataObj.Categories, &cats); err != nil {
+		return nil, err
 	}
-	return items, nil
+	return toCategoryItems(cats), nil
+}
+
+func toCategoryItems(cats []CategoryData) []CategoryItem {
+	items := make([]CategoryItem, len(cats))
+	for i, cat := range cats {
+		id := cat.PathWord
+		if id == "" {
+			id = cat.ID.String()
+		}
+		items[i] = CategoryItem{ID: id, Name: cat.Name}
+	}
+	return items
 }
 
 func (c *Client) GetRanking(rankType string, page int) (*SearchResult, error) {
@@ -433,9 +493,9 @@ func (c *Client) Login(username, password string) (string, error) {
 	}
 
 	var loginResp struct {
-		Code     int    `json:"code"`
-		Data     string `json:"data"`
-		ErrorMsg string `json:"errorMsg"`
+		Code     int             `json:"code"`
+		Data     json.RawMessage `json:"data"`
+		ErrorMsg string          `json:"errorMsg"`
 	}
 	if err := json.Unmarshal(body, &loginResp); err != nil {
 		return "", fmt.Errorf("parse failed: %s", string(body))
@@ -445,8 +505,20 @@ func (c *Client) Login(username, password string) (string, error) {
 		return "", fmt.Errorf("login failed: %s", loginResp.ErrorMsg)
 	}
 
-	c.auth = loginResp.Data
-	return loginResp.Data, nil
+	// 从 data 中提取 jwttoken
+	var userData struct {
+		JWTToken string `json:"jwttoken"`
+	}
+	if err := json.Unmarshal(loginResp.Data, &userData); err != nil {
+		return "", fmt.Errorf("parse user data failed: %s", string(loginResp.Data))
+	}
+
+	if userData.JWTToken == "" {
+		return "", fmt.Errorf("no token in response")
+	}
+
+	c.auth = "Bearer " + userData.JWTToken
+	return userData.JWTToken, nil
 }
 
 func (c *Client) Register(username, email, password, passwordConfirm, gender string) error {
