@@ -316,35 +316,47 @@ func (c *Client) GetChapters(comicID string) ([]ChapterItem, error) {
 }
 
 func (c *Client) GetChapterImages(chapterID string) ([]string, error) {
-	body, err := c.get("/chapter_view_template", map[string]string{
-		"id": chapterID, "mode": "vertical", "page": "0", "app_img_shunt": "NaN",
-	})
+	body, err := c.get("/chapter", map[string]string{"id": chapterID, "comicName": "", "skip": ""})
 	if err != nil {
-		body, err = c.get("/chapter", map[string]string{"id": chapterID, "comicName": "", "skip": ""})
-		if err != nil {
-			return nil, err
-		}
+		return nil, err
 	}
 
 	var resp struct {
 		Code int             `json:"code"`
 		Data json.RawMessage `json:"data"`
 	}
-	if json.Unmarshal(body, &resp) != nil {
-		return nil, fmt.Errorf("no images found")
+	if json.Unmarshal(body, &resp) != nil || resp.Code != 200 {
+		return nil, fmt.Errorf("chapter failed")
 	}
 
+	// 尝试多种格式
 	var arr []string
-	if json.Unmarshal(resp.Data, &arr) == nil {
-		return arr, nil
+	if json.Unmarshal(resp.Data, &arr) == nil && len(arr) > 0 {
+		return buildImageURLs(chapterID, arr), nil
 	}
 	var obj struct {
 		Images []string `json:"images"`
 	}
-	if json.Unmarshal(resp.Data, &obj) == nil {
-		return obj.Images, nil
+	if json.Unmarshal(resp.Data, &obj) == nil && len(obj.Images) > 0 {
+		return buildImageURLs(chapterID, obj.Images), nil
 	}
+
 	return nil, fmt.Errorf("no images found")
+}
+
+// buildImageURLs 把文件名转成完整图片URL
+// 图片URL格式: https://cdn-msp.jmapinodeudzn.net/media/photos/{photo_id}/{filename}
+func buildImageURLs(photoID string, filenames []string) []string {
+	const cdnBase = "https://cdn-msp.jmapinodeudzn.net/media/photos/"
+	urls := make([]string, len(filenames))
+	for i, name := range filenames {
+		if strings.HasPrefix(name, "http") {
+			urls[i] = name
+		} else {
+			urls[i] = cdnBase + photoID + "/" + name
+		}
+	}
+	return urls
 }
 
 func (c *Client) GetCategories() ([]CategoryItem, []CategoryBlock, error) {
