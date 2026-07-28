@@ -190,7 +190,21 @@ func (c *Client) Search(query string, page int, sort string) (*SearchResult, err
 	if err != nil {
 		return nil, err
 	}
-	return c.parseAnyList(body, page)
+
+	result, err := c.parseAnyList(body, page)
+	if err != nil {
+		// 尝试直接解析为最新格式
+		var fallback struct {
+			Code int `json:"code"`
+			Data json.RawMessage `json:"data"`
+		}
+		if json.Unmarshal(body, &fallback) == nil && fallback.Code == 200 {
+			// data 可能是空数组或空对象
+			return &SearchResult{Items: []ComicItem{}, Page: page}, nil
+		}
+		return nil, err
+	}
+	return result, nil
 }
 
 func (c *Client) GetLatest(page int) (*SearchResult, error) {

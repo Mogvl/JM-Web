@@ -1,6 +1,8 @@
 package api
 
 import (
+	"strings"
+
 	"github.com/Mogvl/JM-Web/server/config"
 	"github.com/Mogvl/JM-Web/server/internal/crawler"
 	"github.com/Mogvl/JM-Web/server/internal/database"
@@ -34,7 +36,7 @@ func NewRouter(cfg *config.Config, db *database.DB) *Router {
 			return
 		}
 		auth := c.GetHeader("Authorization")
-		if auth != "" && auth != "Bearer guest" {
+		if auth != "" && auth != "Bearer guest" && auth != "Bearer " && strings.HasPrefix(auth, "Bearer ") && len(auth) > 20 {
 			r.client.SetAuth(auth)
 		}
 		c.Next()
