@@ -11,6 +11,7 @@ export const getChapters = (id) => api.get(`/comic/${id}/chapters`).then(r => r.
 export const getImages = (chapterId) => api.get(`/chapter/${chapterId}`).then(r => r.data)
 export const getCategories = () => api.get('/categories').then(r => r.data)
 export const getRanking = (type = 'daily', page = 1) => api.get('/ranking', { params: { type, page } }).then(r => r.data)
+export const getCategoryFilter = (category, sort = 'mr', page = 1) => api.get('/categories/filter', { params: { category, sort, page } }).then(r => r.data)
 
 // 评论
 export const getComments = (comicId, page = 1) => api.get(`/comic/${comicId}/comments`, { params: { page } }).then(r => r.data)

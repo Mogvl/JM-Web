@@ -91,6 +91,21 @@ func (r *Router) GetCategories(c *gin.Context) {
 	c.JSON(http.StatusOK, categories)
 }
 
+func (r *Router) GetCategoryFilter(c *gin.Context) {
+	category := c.DefaultQuery("category", "0")
+	sort := c.DefaultQuery("sort", "mr")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+
+	result, err := r.client.GetCategoryFilter(category, sort, page)
+	if err != nil {
+		log.Errorf("Get category filter failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed"})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
 // ==================== 收藏 ====================
 
 func (r *Router) GetFavorites(c *gin.Context) {

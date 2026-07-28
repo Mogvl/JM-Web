@@ -417,7 +417,71 @@ func (c *Client) GetRanking(rankType string, page int) (*SearchResult, error) {
 	return c.parseAnyList(body, page)
 }
 
+func (c *Client) GetCategoryFilter(category, sort string, page int) (*SearchResult, error) {
+	params := map[string]string{
+		"o": sort,
+	}
+	if page > 1 {
+		params["page"] = fmt.Sprintf("%d", page)
+	}
+	if category != "" && category != "0" {
+		params["category"] = category
+	}
+
+	body, err := c.get("/categories/filter", params)
+	if err != nil {
+		return nil, err
+	}
+
+	// 尝试解析
+	var resp struct {
+		Code int             `json:"code"`
+		Data json.RawMessage `json:"data"`
+	}
+	if json.Unmarshal(body, &resp) != nil {
+		return c.parseAnyList(body, page)
+	}
+
+	// data 可能是 {total, content}
+	var catData struct {
+		Total   int               `json:"total"`
+		Content []json.RawMessage `json:"content"`
+	}
+	if json.Unmarshal(resp.Data, &catData) == nil {
+		items := make([]ComicItem, 0)
+		for _, item := range catData.Content {
+			var raw RawComicItem
+			if json.Unmarshal(item, &raw) != nil {
+				continue
+			}
+			items = append(items, c.rawToItem(raw))
+		}
+		return &SearchResult{Items: items, TotalPages: (catData.Total + 19) / 20, Page: page}, nil
+	}
+
+	return c.parseAnyList(body, page)
+}
+
+func (c *Client) rawToItem(raw RawComicItem) ComicItem {
+	author := parseAuthor(raw.Author)
+	comicID := raw.PathWord
+	if comicID == "" {
+		comicID = raw.ID.String()
+	}
+	coverURL := raw.Cover
+	if coverURL == "" {
+		coverURL = raw.Image
+	}
+	if coverURL == "" {
+		coverURL = buildCoverURL(comicID)
+	}
+	return ComicItem{ID: comicID, Title: raw.Name, Author: author, CoverURL: coverURL}
+}
+
 func (c *Client) GetComments(comicID string, page int) ([]CommentItem, error) {
+	if page < 1 {
+		page = 1
+	}
 	body, err := c.get("/api/comic/"+comicID+"/comments", map[string]string{
 		"offset": fmt.Sprintf("%d", (page-1)*20),
 		"limit":  "20",

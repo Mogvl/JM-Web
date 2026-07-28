@@ -53,6 +53,7 @@ func (r *Router) setupRoutes() {
 		api.GET("/comic/:id/chapters", r.GetChapters)
 		api.GET("/chapter/:id", r.GetChapterImages)
 		api.GET("/categories", r.GetCategories)
+		api.GET("/categories/filter", r.GetCategoryFilter)
 
 		// 评论
 		api.GET("/comic/:id/comments", r.GetComments)
