@@ -94,6 +94,16 @@ const readFirst = () => { if (chapters.value.length) router.push(`/read/${route.
 .tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 .desc { font-size: 14px; color: var(--text-secondary); line-height: 1.7; margin-bottom: 24px; max-height: 120px; overflow-y: auto; }
 .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+@media (max-width: 768px) {
+  .detail-header { flex-direction: column; gap: 16px; align-items: center; text-align: center; }
+  .cover { width: 180px; height: 240px; }
+  .info { width: 100%; text-align: left; }
+  .title { font-size: 20px; }
+  .meta-row { justify-content: center; }
+  .tags { justify-content: center; }
+  .actions { justify-content: center; }
+}
 .section { margin-bottom: 32px; }
 .section-title { font-size: 18px; font-weight: 600; color: var(--text-primary); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
 .count { font-size: 13px; color: var(--text-muted); font-weight: 400; }

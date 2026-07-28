@@ -82,3 +82,31 @@ body {
 
 .comic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; }
 .loading-state, .empty-state { text-align: center; padding: 80px 0; color: var(--text-muted); font-size: 14px; }
+
+/* Mobile menu button */
+.menu-toggle { display: none; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sidebar { position: fixed; left: 0; top: 0; bottom: 0; z-index: 1000; transform: translateX(-100%); transition: transform 0.3s ease; box-shadow: 4px 0 24px rgba(0,0,0,0.15); }
+  .sidebar.open { transform: translateX(0); }
+  .menu-toggle { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: none; background: transparent; color: var(--text-primary); cursor: pointer; border-radius: var(--radius-sm); }
+  .menu-toggle:hover { background: var(--bg-hover); }
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 999; }
+  .top-bar { padding: 0 12px; }
+  .search-wrap { flex: 1; max-width: none; }
+  .content-area { padding: 12px; }
+  .comic-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+  .comic-card img { height: 150px; }
+  .comic-card .card-title { padding: 6px 8px; font-size: 12px; }
+  .comic-card .card-author { padding: 0 8px 6px; font-size: 11px; }
+  .user-section { padding: 16px 12px; }
+  .nav-menu .el-menu-item { margin: 2px 4px; }
+}
+
+@media (max-width: 480px) {
+  .comic-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .comic-card img { height: 130px; }
+  .week-select { width: 100%; }
+  .week-header { flex-direction: column; align-items: stretch; gap: 8px; }
+}

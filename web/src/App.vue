@@ -1,7 +1,10 @@
 <template>
   <div class="app-shell" v-if="!isLogin">
+    <!-- 移动端遮罩 -->
+    <div v-if="sidebarOpen" class="overlay" @click="sidebarOpen = false"></div>
+
     <!-- 左侧导航栏 -->
-    <aside class="sidebar">
+    <aside :class="['sidebar', sidebarOpen && 'open']">
       <div class="user-section">
         <el-avatar :size="64" :src="userInfo.avatar || ''" class="user-avatar">
           {{ username.charAt(0).toUpperCase() }}
@@ -17,7 +20,7 @@
         </div>
       </div>
 
-      <nav class="nav-menu">
+      <nav class="nav-menu" @click="onNavClick">
         <el-menu :default-active="$route.path" router>
           <el-menu-item-group>
             <template #title>用户</template>
@@ -53,7 +56,8 @@
     <!-- 右侧内容区 -->
     <main class="main-area">
       <header class="top-bar">
-        <el-breadcrumb separator="/">
+        <button class="menu-toggle" @click="sidebarOpen = true"><el-icon><Menu /></el-icon></button>
+        <el-breadcrumb separator="/" class="breadcrumb">
           <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
           <el-breadcrumb-item v-if="$route.meta.title">{{ $route.meta.title }}</el-breadcrumb-item>
         </el-breadcrumb>
@@ -73,15 +77,16 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Star, Clock, ChatDotRound, ChatLineSquare, HomeFilled, Search, Grid, Calendar, Download, FolderOpened, Setting, QuestionFilled, Connection, MagicStick, Upload, Folder, List, FullScreen } from '@element-plus/icons-vue'
+import { Star, Clock, ChatDotRound, ChatLineSquare, HomeFilled, Search, Grid, Calendar, Download, FolderOpened, Setting, QuestionFilled, Connection, MagicStick, Upload, Folder, List, FullScreen, Menu } from '@element-plus/icons-vue'
 import { sign } from './api'
 import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const route = useRoute()
 const searchQuery = ref('')
+const sidebarOpen = ref(false)
 const username = ref(localStorage.getItem('username') || '游客')
 const userInfo = ref({
   coins: parseInt(localStorage.getItem('coins') || '0'),
@@ -96,14 +101,16 @@ const doSearch = () => {
   if (searchQuery.value.trim()) router.push({ path: '/search', query: { q: searchQuery.value.trim() } })
 }
 
+const onNavClick = () => { sidebarOpen.value = false }
+
 const handleSign = async () => {
   try { await sign(); ElMessage.success('签到成功') } catch (e) { ElMessage.error('签到失败') }
 }
 
-const handleLogout = () => {
-  localStorage.clear()
-  router.push('/login')
-}
+const handleLogout = () => { localStorage.clear(); router.push('/login') }
+
+// 路由变化时关闭侧边栏
+watch(() => route.path, () => { sidebarOpen.value = false })
 </script>
 
 <style scoped>
@@ -114,7 +121,15 @@ const handleLogout = () => {
 .user-stats b { color: var(--text-secondary); }
 .user-actions { margin-top: 14px; display: flex; justify-content: center; gap: 8px; }
 .nav-menu { flex: 1; overflow-y: auto; padding-bottom: 16px; }
-.top-bar { height: 56px; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; background: var(--bg-surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
-.search-wrap { width: 320px; }
+.top-bar { height: 56px; padding: 0 24px; display: flex; align-items: center; gap: 12px; background: var(--bg-surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.breadcrumb { flex-shrink: 0; }
+.search-wrap { flex: 1; max-width: 320px; margin-left: auto; }
 .content-area { flex: 1; overflow-y: auto; padding: 24px; }
+
+@media (max-width: 768px) {
+  .top-bar { padding: 0 12px; gap: 8px; }
+  .breadcrumb { display: none; }
+  .search-wrap { max-width: none; margin-left: 0; }
+  .content-area { padding: 12px; }
+}
 </style>
