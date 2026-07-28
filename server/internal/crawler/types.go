@@ -32,7 +32,7 @@ type SearchResult struct {
 
 type SearchData struct {
 	List   []RawComicItem `json:"list"`
-	Total  int            `json:"total"`
+	Total  json.Number    `json:"total"`
 	Limit  int            `json:"limit"`
 	Offset int            `json:"offset"`
 }

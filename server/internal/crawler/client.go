@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -784,7 +785,8 @@ func (c *Client) parseComicList(body []byte, page int) (*SearchResult, error) {
 	}
 	totalPages := 1
 	if searchData.Limit > 0 {
-		totalPages = (searchData.Total + searchData.Limit - 1) / searchData.Limit
+		totalInt, _ := strconv.Atoi(searchData.Total.String())
+		totalPages = (totalInt + searchData.Limit - 1) / searchData.Limit
 	}
 	return &SearchResult{Items: results, TotalPages: totalPages, Page: page}, nil
 }
