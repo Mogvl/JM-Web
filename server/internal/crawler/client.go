@@ -147,12 +147,10 @@ func (c *Client) executeRequest(req *http.Request, method string) ([]byte, error
 		if err := json.Unmarshal(rawResp.Data, &dataStr); err == nil && len(dataStr) > 50 {
 			decrypted, err := c.decryptData(dataStr)
 			if err != nil {
+				fmt.Printf("DECRYPT FAIL: %v, data=%s...\n", err, dataStr[:60])
 				return body, nil
 			}
-			trimmed := strings.TrimSpace(decrypted)
-			if strings.HasPrefix(trimmed, "[") {
-				decrypted = `{"list":` + decrypted + `,"total":0,"limit":20,"offset":0}`
-			}
+			fmt.Printf("DECRYPT OK: %s...\n", decrypted[:min(100, len(decrypted))])
 			return []byte(fmt.Sprintf(`{"code":200,"data":%s,"errorMsg":""}`, decrypted)), nil
 		}
 	}
@@ -477,33 +475,37 @@ func (c *Client) GetIndexInfo(page int) (map[string][]ComicItem, error) {
 		return nil, fmt.Errorf("promote failed")
 	}
 
-	// 尝试 {bookInfo: {cat: [{id,name,author,image}]}}
-	var promoteResp struct {
-		BookInfo map[string][]struct {
+	// promote返回数组: [{title: "分类名", content: [{id,name,author,image}, ...]}]
+	var items []struct {
+		Title   string `json:"title"`
+		Content []struct {
 			ID     json.Number    `json:"id"`
 			Name   string         `json:"name"`
 			Author json.RawMessage `json:"author"`
 			Image  string         `json:"image"`
-		} `json:"bookInfo"`
+		} `json:"content"`
 	}
-	if json.Unmarshal(resp.Data, &promoteResp) == nil && promoteResp.BookInfo != nil {
-		result := make(map[string][]ComicItem)
-		for name, items := range promoteResp.BookInfo {
-			comics := make([]ComicItem, len(items))
-			for i, item := range items {
-				comics[i] = ComicItem{
-					ID:       item.ID.String(),
-					Title:    item.Name,
-					Author:   parseAuthor(item.Author),
-					CoverURL: buildCoverURL(item.ID.String()),
-				}
-			}
-			result[name] = comics
-		}
-		return result, nil
+	if err := json.Unmarshal(resp.Data, &items); err != nil {
+		return nil, err
 	}
 
-	return nil, fmt.Errorf("no bookInfo")
+	result := make(map[string][]ComicItem)
+	for _, item := range items {
+		if len(item.Content) == 0 {
+			continue
+		}
+		comics := make([]ComicItem, len(item.Content))
+		for i, c := range item.Content {
+			comics[i] = ComicItem{
+				ID:       c.ID.String(),
+				Title:    c.Name,
+				Author:   parseAuthor(c.Author),
+				CoverURL: buildCoverURL(c.ID.String()),
+			}
+		}
+		result[item.Title] = comics
+	}
+	return result, nil
 }
 
 func (c *Client) GetRanking(rankType string, page int) (*SearchResult, error) {
@@ -616,23 +618,32 @@ func (c *Client) parseAnyList(body []byte, page int) (*SearchResult, error) {
 	if err == nil {
 		return resp, nil
 	}
-	// Try array format
+	// Try array format (data as array)
 	var arrResp struct {
 		Code int               `json:"code"`
 		Data []json.RawMessage `json:"data"`
 	}
 	if json.Unmarshal(body, &arrResp) == nil && len(arrResp.Data) > 0 {
-		items := make([]ComicItem, 0)
-		for _, item := range arrResp.Data {
-			var raw RawComicItem
-			if json.Unmarshal(item, &raw) != nil {
-				continue
-			}
-			items = append(items, rawToComicItem(raw))
-		}
-		return &SearchResult{Items: items, TotalPages: 1, Page: page}, nil
+		return parseRawItems(arrResp.Data, page), nil
+	}
+	// Try bare array in body
+	var bareArr []json.RawMessage
+	if json.Unmarshal(body, &bareArr) == nil && len(bareArr) > 0 {
+		return parseRawItems(bareArr, page), nil
 	}
 	return resp, err
+}
+
+func parseRawItems(rawItems []json.RawMessage, page int) *SearchResult {
+	items := make([]ComicItem, 0)
+	for _, item := range rawItems {
+		var raw RawComicItem
+		if json.Unmarshal(item, &raw) != nil {
+			continue
+		}
+		items = append(items, rawToComicItem(raw))
+	}
+	return &SearchResult{Items: items, TotalPages: 1, Page: page}
 }
 
 func (c *Client) parseComicList(body []byte, page int) (*SearchResult, error) {
