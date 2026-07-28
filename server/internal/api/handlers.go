@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -431,6 +432,40 @@ func (r *Router) GetHelp(c *gin.Context) {
 			{"q": "如何切换阅读模式？", "a": "在设置页面可以切换滚动/翻页模式。"},
 		},
 	})
+}
+
+// ==================== 图片代理 ====================
+
+func (r *Router) ProxyImage(c *gin.Context) {
+	imgURL := c.Query("url")
+	if imgURL == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "url required"})
+		return
+	}
+
+	req, err := http.NewRequest("GET", imgURL, nil)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid url"})
+		return
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+	req.Header.Set("Referer", r.config.JMComic.BaseURL)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": "fetch failed"})
+		return
+	}
+	defer resp.Body.Close()
+
+	contentType := resp.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "image/jpeg"
+	}
+	c.Header("Content-Type", contentType)
+	c.Header("Cache-Control", "public, max-age=86400")
+	c.Status(resp.StatusCode)
+	io.Copy(c.Writer, resp.Body)
 }
 
 func (r *Router) processDownload(downloadID int, comicID string) {

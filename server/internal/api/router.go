@@ -91,6 +91,9 @@ func (r *Router) setupRoutes() {
 
 		// 帮助
 		api.GET("/help", r.GetHelp)
+
+		// 图片代理
+		api.GET("/image", r.ProxyImage)
 	}
 }
 

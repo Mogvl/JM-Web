@@ -12,7 +12,7 @@
     <div v-if="loading" class="loading-state">加载中...</div>
     <div v-else-if="images.length === 0" class="empty-state">暂无图片</div>
     <div v-else class="image-stream">
-      <img v-for="(img, i) in images" :key="i" :src="img" loading="lazy" />
+      <img v-for="(img, i) in proxiedImages" :key="i" :src="img" loading="lazy" />
     </div>
 
     <div class="reader-bar bottom">
@@ -41,6 +41,9 @@ const hasPrev = computed(() => currentIndex.value > 0)
 const hasNext = computed(() => currentIndex.value >= 0 && currentIndex.value < chapters.value.length - 1)
 const currentTitle = computed(() => { const ch = chapters.value.find(c => c.id === chapterId.value); return ch ? (ch.title || `第${ch.sort_order}章`) : '' })
 
+// 图片通过后端代理，避免防盗链
+const proxiedImages = computed(() => images.value.map(url => `/api/image?url=${encodeURIComponent(url)}`))
+
 const loadImages = async () => {
   loading.value = true
   try { const data = await getImages(chapterId.value); images.value = data.images || [] }
@@ -52,8 +55,10 @@ const prevChapter = () => { if (hasPrev.value) router.push(`/read/${comicId.valu
 const nextChapter = () => { if (hasNext.value) router.push(`/read/${comicId.value}/${chapters.value[currentIndex.value + 1].id}`) }
 
 onMounted(async () => {
-  const data = await getChapters(comicId.value)
-  chapters.value = data.chapters || []
+  try {
+    const data = await getChapters(comicId.value)
+    chapters.value = data.chapters || []
+  } catch (e) { chapters.value = [] }
   await loadImages()
 })
 
