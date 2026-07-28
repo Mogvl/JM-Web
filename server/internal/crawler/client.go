@@ -40,6 +40,10 @@ func NewClient(baseURL, auth string) *Client {
 	}
 }
 
+func (c *Client) SetAuth(token string) {
+	c.auth = token
+}
+
 func (c *Client) getHeaders(method string) map[string]string {
 	now := time.Now().Unix()
 	c.ts = now

@@ -15,6 +15,14 @@ type Router struct {
 }
 
 func NewRouter(cfg *config.Config, db *database.DB) *Router {
+	client := crawler.NewClient(cfg.JMComic.BaseURL, cfg.JMComic.Auth)
+
+	r := &Router{
+		client: client,
+		db:     db,
+		config: cfg,
+	}
+
 	engine := gin.Default()
 
 	engine.Use(func(c *gin.Context) {
@@ -25,18 +33,14 @@ func NewRouter(cfg *config.Config, db *database.DB) *Router {
 			c.AbortWithStatus(204)
 			return
 		}
+		auth := c.GetHeader("Authorization")
+		if auth != "" && auth != "Bearer guest" {
+			r.client.SetAuth(auth)
+		}
 		c.Next()
 	})
 
-	client := crawler.NewClient(cfg.JMComic.BaseURL, cfg.JMComic.Auth)
-
-	r := &Router{
-		engine: engine,
-		client: client,
-		db:     db,
-		config: cfg,
-	}
-
+	r.engine = engine
 	r.setupRoutes()
 	return r
 }

@@ -2,6 +2,15 @@ import axios from 'axios'
 
 const api = axios.create({ baseURL: '/api', timeout: 30000 })
 
+// 自动添加 token
+api.interceptors.request.use(config => {
+  const token = localStorage.getItem('token')
+  if (token && token !== 'guest') {
+    config.headers.Authorization = 'Bearer ' + token
+  }
+  return config
+})
+
 // 浏览
 export const search = (q, page = 1) => api.get('/search', { params: { q, page } }).then(r => r.data)
 export const getIndex = (page = 0) => api.get('/index', { params: { page } }).then(r => r.data)
