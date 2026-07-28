@@ -110,17 +110,13 @@ func (r *Router) GetCategoryFilter(c *gin.Context) {
 func (r *Router) GetFavorites(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 
-	// 在线获取收藏
-	online, err := r.client.GetOnlineFavorites(page)
+	online, folders, err := r.client.GetOnlineFavoritesWithFolders(page)
 	if err != nil {
 		log.Warnf("Get online favorites failed: %v", err)
 		c.JSON(http.StatusOK, []interface{}{})
 		return
 	}
 
-	log.Infof("Online favorites: %d items", len(online.Items))
-
-	// 转换为前端格式: {id, comic_id, comic: {title, cover_url}}
 	result := make([]map[string]interface{}, len(online.Items))
 	for i, item := range online.Items {
 		result[i] = map[string]interface{}{
@@ -135,7 +131,10 @@ func (r *Router) GetFavorites(c *gin.Context) {
 			"created_at": "",
 		}
 	}
-	c.JSON(http.StatusOK, result)
+	c.JSON(http.StatusOK, gin.H{
+		"list":    result,
+		"folders": folders,
+	})
 }
 
 func (r *Router) AddFavorite(c *gin.Context) {
@@ -147,22 +146,28 @@ func (r *Router) AddFavorite(c *gin.Context) {
 		return
 	}
 
-	if err := r.db.AddFavorite(req.ComicID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add favorite"})
+	// 调用 JMComic API 添加收藏
+	isFav, err := r.client.ToggleFavorite(req.ComicID)
+	if err != nil {
+		log.Warnf("Toggle favorite failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Added"})
+	r.db.AddFavorite(req.ComicID)
+	c.JSON(http.StatusOK, gin.H{"message": "Added", "is_favorite": isFav})
 }
 
 func (r *Router) RemoveFavorite(c *gin.Context) {
 	comicID := c.Param("id")
 
-	if err := r.db.RemoveFavorite(comicID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove favorite"})
-		return
+	// 调用 JMComic API 取消收藏
+	_, err := r.client.ToggleFavorite(comicID)
+	if err != nil {
+		log.Warnf("Toggle favorite failed: %v", err)
 	}
 
+	r.db.RemoveFavorite(comicID)
 	c.JSON(http.StatusOK, gin.H{"message": "Removed"})
 }
 

@@ -125,3 +125,8 @@ type WeekCategory struct {
 	Time  string      `json:"time"`
 	Title string      `json:"title"`
 }
+
+type FavoriteFolders struct {
+	Name string `json:"name"`
+	FID  string `json:"FID"`
+}

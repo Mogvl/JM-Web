@@ -48,7 +48,10 @@ const load = async () => {
   loading.value = true
   try {
     const data = await getFavorites()
-    list.value = data || []
+    list.value = data.list || data || []
+    if (data.folders) {
+      folders.value = data.folders.map(f => ({ id: f.FID, name: f.name }))
+    }
   } catch (e) {
     list.value = []
   } finally {

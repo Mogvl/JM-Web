@@ -575,10 +575,7 @@ func (c *Client) GetOnlineFavorites(page int) (*SearchResult, error) {
 			Total      json.Number        `json:"total"`
 			Count      json.Number        `json:"count"`
 			List       []json.RawMessage   `json:"list"`
-			FolderList []struct {
-				Name string `json:"name"`
-				FID  string `json:"FID"`
-			} `json:"folder_list"`
+			FolderList []FavoriteFolders   `json:"folder_list"`
 		} `json:"data"`
 	}
 	if json.Unmarshal(body, &favResp) == nil && favResp.Code == 200 {
@@ -681,8 +678,49 @@ func (c *Client) GetUserInfo() (*LoginUserData, error) {
 	return nil, fmt.Errorf("not logged in")
 }
 
+func (c *Client) ToggleFavorite(comicID string) (bool, error) {
+	_, err := c.doPostForm("/favorite", url.Values{"aid": {comicID}})
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 func (c *Client) Sign() error {
-	return nil
+	_, err := c.doPostForm("/sign", url.Values{})
+	return err
+}
+
+func (c *Client) GetOnlineFavoritesWithFolders(page int) (*SearchResult, []FavoriteFolders, error) {
+	body, err := c.get("/favorite", map[string]string{
+		"page": fmt.Sprintf("%d", page), "folder_id": "0", "o": "mr",
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var favResp struct {
+		Code int `json:"code"`
+		Data struct {
+			Total      json.Number        `json:"total"`
+			Count      json.Number        `json:"count"`
+			List       []json.RawMessage   `json:"list"`
+			FolderList []FavoriteFolders   `json:"folder_list"`
+		} `json:"data"`
+	}
+	if json.Unmarshal(body, &favResp) == nil && favResp.Code == 200 {
+		items := make([]ComicItem, len(favResp.Data.List))
+		for i, item := range favResp.Data.List {
+			var raw RawComicItem
+			if json.Unmarshal(item, &raw) == nil {
+				items[i] = rawToComicItem(raw)
+			}
+		}
+		return &SearchResult{Items: items, TotalPages: 1, Page: page}, favResp.Data.FolderList, nil
+	}
+
+	result, err := c.parseAnyList(body, page)
+	return result, nil, err
 }
 
 // ==================== Helper Functions ====================
