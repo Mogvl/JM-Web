@@ -4,3 +4,5 @@ web/node_modules
 data
 *.db
 .git
+downloads/
+server/main.exe
