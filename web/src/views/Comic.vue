@@ -66,6 +66,8 @@
       </div>
     </div>
 
+    <DownloadEpsDialog v-model="showDownloadDialog" :comic-id="route.params.id" :comic="comic" />
+
     <div class="section" id="comments">
       <div class="section-head">
         <h2 class="section-title">评论</h2>
@@ -95,6 +97,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { getComic, getChapters, getComments, getFavorites, addFavorite, removeFavorite, createDownload } from '../api'
 import { Star, Download, ChatDotRound } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import DownloadEpsDialog from '../components/DownloadEpsDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -102,6 +105,7 @@ const comic = ref(null)
 const chapters = ref([])
 const comments = ref([])
 const isFav = ref(false)
+const showDownloadDialog = ref(false)
 
 onMounted(async () => {
   const id = route.params.id
@@ -121,15 +125,7 @@ const toggleFavorite = async () => {
   else { await addFavorite(id); isFav.value = true; ElMessage.success('已收藏') }
 }
 
-const startDownload = async () => {
-  await createDownload(route.params.id, {
-    title: comic.value.title,
-    author: comic.value.author,
-    cover: comic.value.cover_url,
-  })
-  ElMessage.success('下载任务已创建')
-  router.push('/downloads')
-}
+const startDownload = () => { showDownloadDialog.value = true }
 
 const searchTag = (tag) => router.push({ path: '/search', query: { q: tag } })
 const searchAuthor = (author) => { if (author) router.push({ path: '/search', query: { q: author } }) }
