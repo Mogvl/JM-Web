@@ -478,6 +478,38 @@ func (c *Client) rawToItem(raw RawComicItem) ComicItem {
 	return ComicItem{ID: comicID, Title: raw.Name, Author: author, CoverURL: coverURL}
 }
 
+func (c *Client) GetOnlineFavorites(page int) (*SearchResult, error) {
+	body, err := c.get("/favorite", map[string]string{
+		"page":      fmt.Sprintf("%d", page),
+		"folder_id": "0",
+		"o":         "mr",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var resp struct {
+		Code int             `json:"code"`
+		Data json.RawMessage `json:"data"`
+	}
+	if json.Unmarshal(body, &resp) != nil || resp.Code != 200 {
+		return c.parseAnyList(body, page)
+	}
+
+	// data 可能是 {list: [...]} 或 [...]
+	return c.parseAnyList(body, page)
+}
+
+func (c *Client) GetOnlineHistory(page int) (*SearchResult, error) {
+	body, err := c.get("/watch_list", map[string]string{
+		"page": fmt.Sprintf("%d", page),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return c.parseAnyList(body, page)
+}
+
 func (c *Client) GetComments(comicID string, page int) ([]CommentItem, error) {
 	if page < 1 {
 		page = 1

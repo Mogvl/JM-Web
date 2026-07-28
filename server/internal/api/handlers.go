@@ -109,12 +109,20 @@ func (r *Router) GetCategoryFilter(c *gin.Context) {
 // ==================== 收藏 ====================
 
 func (r *Router) GetFavorites(c *gin.Context) {
+	// 先从本地获取
 	favorites, err := r.db.GetFavorites()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get favorites"})
+	if err == nil && len(favorites) > 0 {
+		c.JSON(http.StatusOK, favorites)
 		return
 	}
-	c.JSON(http.StatusOK, favorites)
+	// 再从在线获取
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	online, err := r.client.GetOnlineFavorites(page)
+	if err != nil {
+		c.JSON(http.StatusOK, []interface{}{})
+		return
+	}
+	c.JSON(http.StatusOK, online.Items)
 }
 
 func (r *Router) AddFavorite(c *gin.Context) {
