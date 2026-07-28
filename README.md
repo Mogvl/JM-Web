@@ -51,7 +51,7 @@
 |------|------|
 | 前端开发 | 5000 |
 | 后端 API | 5001 |
-| Docker 部署 | 5000 |
+| Docker 部署 | 5000（Web）+ 5001（内部 API） |
 
 ## 绿联云部署
 
@@ -92,7 +92,7 @@ cd server && GOPROXY=https://goproxy.cn,direct go mod tidy && go run cmd/main.go
 cd web && npm install && npm run dev
 ```
 
-访问 http://localhost:5001
+访问 http://localhost:5000
 
 ## API 接口
 
@@ -117,7 +117,7 @@ cd web && npm install && npm run dev
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| PORT | 5000 | 后端端口 |
+| PORT | 5001 | 后端端口 |
 | DB_PATH | /data/jmcomic.db | 数据库路径 |
 | DOWNLOAD_DIR | /data/downloads | 下载目录 |
 | JM_BASE_URL | https://www.cdnhjk.net | API地址 |
