@@ -186,10 +186,11 @@ func (r *Router) ClearHistory(c *gin.Context) {
 
 func (r *Router) CreateDownload(c *gin.Context) {
 	var req struct {
-		ComicID string `json:"comic_id" binding:"required"`
-		Title   string `json:"title"`
-		Author  string `json:"author"`
-		Cover   string `json:"cover"`
+		ComicID  string `json:"comic_id" binding:"required"`
+		Title    string `json:"title"`
+		Author   string `json:"author"`
+		Cover    string `json:"cover"`
+		Format   string `json:"format"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "comic_id required"})
@@ -210,7 +211,10 @@ func (r *Router) CreateDownload(c *gin.Context) {
 		return
 	}
 
-	go r.processDownload(dl.ID, req.ComicID)
+	if req.Format == "" {
+		req.Format = "jpg"
+	}
+	go r.processDownload(dl.ID, req.ComicID, req.Format)
 
 	c.JSON(http.StatusOK, dl)
 }
@@ -468,7 +472,7 @@ func (r *Router) ProxyImage(c *gin.Context) {
 	io.Copy(c.Writer, resp.Body)
 }
 
-func (r *Router) processDownload(downloadID int, comicID string) {
+func (r *Router) processDownload(downloadID int, comicID string, format string) {
 	r.db.UpdateDownload(downloadID, "downloading", 0, 0)
 
 	comic, err := r.client.GetComicDetail(comicID)
@@ -513,6 +517,11 @@ func (r *Router) processDownload(downloadID int, comicID string) {
 		return
 	}
 
+	targetExt := format
+	if targetExt == "" {
+		targetExt = "jpg"
+	}
+
 	downloadedImgs := 0
 	for i, ci := range allChapters {
 		progress := (downloadedImgs * 100) / maxInt(1, totalImgs)
@@ -525,17 +534,21 @@ func (r *Router) processDownload(downloadID int, comicID string) {
 			if imgURL == "" {
 				continue
 			}
-			ext := ".jpg"
-			if strings.HasSuffix(imgURL, ".png") {
-				ext = ".png"
-			} else if strings.HasSuffix(imgURL, ".webp") {
-				ext = ".webp"
-			} else if strings.HasSuffix(imgURL, ".gif") {
-				ext = ".gif"
+			// 根据选择的格式替换扩展名
+			downloadURL := imgURL
+			if targetExt != "webp" {
+				// 把图片URL里的扩展名换成目标格式
+				for _, ext := range []string{".webp", ".png", ".gif", ".jpg"} {
+					idx := strings.LastIndex(downloadURL, ext)
+					if idx > 0 && idx > strings.LastIndex(downloadURL, "/") {
+						downloadURL = downloadURL[:idx] + "." + targetExt
+						break
+					}
+				}
 			}
-			imgPath := filepath.Join(chapterDir, fmt.Sprintf("%03d%s", j+1, ext))
-			if err := r.client.DownloadImage(imgURL, imgPath); err != nil {
-				log.Warnf("Download image %s failed: %v", imgURL, err)
+			imgPath := filepath.Join(chapterDir, fmt.Sprintf("%03d.%s", j+1, targetExt))
+			if err := r.client.DownloadImage(downloadURL, imgPath); err != nil {
+				log.Warnf("Download image %s failed: %v", downloadURL, err)
 				continue
 			}
 			downloadedImgs++
@@ -545,7 +558,7 @@ func (r *Router) processDownload(downloadID int, comicID string) {
 
 	r.db.UpdateDownload(downloadID, "completed", 100, downloadedImgs)
 	r.db.SetDownloadPath(downloadID, comicDir)
-	log.Infof("Download completed: %s -> %s (%d/%d images)", comic.Title, comicDir, downloadedImgs, totalImgs)
+	log.Infof("Download completed: %s -> %s (%d/%d images, %s)", comic.Title, comicDir, downloadedImgs, totalImgs, targetExt)
 }
 
 func maxInt(a, b int) int { if a > b { return a }; return b }
