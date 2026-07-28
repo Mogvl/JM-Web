@@ -76,7 +76,7 @@ services:
       - TZ=Asia/Shanghai
     volumes:
       - /volume1/jm:/data/downloads
-      - /volume1/docker/JM:/data
+      - /volume1/docker/jm:/data
     restart: unless-stopped
 ```
 
