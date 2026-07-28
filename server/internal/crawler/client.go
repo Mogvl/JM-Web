@@ -173,16 +173,20 @@ func (c *Client) get(path string, params map[string]string) ([]byte, error) {
 	return c.executeRequest(req, "GET")
 }
 
-func (c *Client) Search(query string, page int) (*SearchResult, error) {
+func (c *Client) Search(query string, page int, sort string) (*SearchResult, error) {
 	if page < 1 {
 		page = 1
 	}
 	offset := (page - 1) * 20
-	body, err := c.get("/api/search", map[string]string{
+	params := map[string]string{
 		"query":  query,
 		"offset": fmt.Sprintf("%d", offset),
 		"limit":  "20",
-	})
+	}
+	if sort != "" {
+		params["o"] = sort
+	}
+	body, err := c.get("/api/search", params)
 	if err != nil {
 		return nil, err
 	}

@@ -13,13 +13,14 @@ import (
 func (r *Router) Search(c *gin.Context) {
 	query := c.Query("q")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	sort := c.DefaultQuery("sort", "")
 
 	if query == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "q is required"})
 		return
 	}
 
-	result, err := r.client.Search(query, page)
+	result, err := r.client.Search(query, page, sort)
 	if err != nil {
 		log.Errorf("Search failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Search failed"})
