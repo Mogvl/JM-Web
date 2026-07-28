@@ -30,8 +30,7 @@
           <template #title>浏览</template>
           <el-menu-item index="/"><el-icon><HomeFilled /></el-icon><span>首页</span></el-menu-item>
           <el-menu-item index="/search"><el-icon><Search /></el-icon><span>搜索</span></el-menu-item>
-          <el-menu-item index="/category"><el-icon><Grid /></el-icon><span>分类</span></el-menu-item>
-          <el-menu-item index="/rank"><el-icon><Trophy /></el-icon><span>排行榜</span></el-menu-item>
+          <el-menu-item index="/category"><el-icon><Grid /></el-icon><span>分类/排行</span></el-menu-item>
           <el-menu-item index="/weekly"><el-icon><Calendar /></el-icon><span>每周更新</span></el-menu-item>
         </el-menu-item-group>
 

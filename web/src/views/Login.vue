@@ -143,7 +143,8 @@ const handleLogin = async () => {
     }
 
     ElMessage.success('登录成功')
-    router.push('/')
+    // 强制刷新页面以更新所有组件
+    window.location.href = '/'
   } catch (e) {
     ElMessage.error('登录失败，请检查用户名和密码')
   } finally {

@@ -298,8 +298,7 @@ func (c *Client) parseAlbumDetail(raw json.RawMessage, comicID string) (*ComicDe
 }
 
 func buildCoverURL(id string) string {
-	// 封面 URL 格式: /media/albums/{id}_3x4.jpg
-	return fmt.Sprintf("https://cdn-msp.jmapiproxy1.cc/media/albums/%s_3x4.jpg", id)
+	return fmt.Sprintf("https://cdn-msp.jmapinodeudzn.net/media/albums/%s_3x4.jpg", id)
 }
 
 func (c *Client) GetChapters(comicID string) ([]ChapterItem, error) {
@@ -621,8 +620,11 @@ func (c *Client) Login(username, password string) (*LoginUserData, error) {
 
 	var userData LoginUserData
 	if err := json.Unmarshal(loginResp.Data, &userData); err != nil {
-		return nil, fmt.Errorf("parse user data failed: %s", string(loginResp.Data))
+		log.Warnf("Parse user data failed: %v, data: %s...", err, string(loginResp.Data)[:min(300, len(loginResp.Data))])
+		return nil, fmt.Errorf("parse user data failed")
 	}
+
+	log.Infof("Login user: %s, coin=%d, level=%d, token=%s", userData.Username, userData.Coin, userData.Level, userData.JWTToken[:min(20, len(userData.JWTToken))])
 
 	if userData.JWTToken == "" {
 		return nil, fmt.Errorf("no token in response")
