@@ -3,7 +3,9 @@ package crawler
 import (
 	"bytes"
 	"compress/gzip"
+	"crypto/aes"
 	"crypto/md5"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,10 +16,17 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+	appVersion    = "2.0.28"
+	appSecret     = "185Hcomic3PAPP7R"
+	appDataSecret = "185Hcomic3PAPP7R"
+)
+
 type Client struct {
 	baseURL    string
 	auth       string
 	httpClient *http.Client
+	ts         int64
 }
 
 func NewClient(baseURL, auth string) *Client {
@@ -32,75 +41,19 @@ func NewClient(baseURL, auth string) *Client {
 
 func (c *Client) getHeaders(method string) map[string]string {
 	now := time.Now().Unix()
-	param := fmt.Sprintf("%d18comicAPP", now)
+	c.ts = now
+	param := fmt.Sprintf("%d%s", now, appSecret)
 	token := fmt.Sprintf("%x", md5.Sum([]byte(param)))
-
 	headers := map[string]string{
-		"tokenparam":     fmt.Sprintf("%d,2.0.26", now),
-		"token":          token,
+		"tokenparam":      fmt.Sprintf("%d,%s", now, appVersion),
+		"token":           token,
 		"accept-encoding": "gzip",
-		"version":        "v1.3.4",
+		"version":         appVersion,
 	}
-
 	if method == "POST" {
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
 	}
-
 	return headers
-}
-
-func (c *Client) doRequest(url string) ([]byte, error) {
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	headers := c.getHeaders("GET")
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-
-	if c.auth != "" {
-		req.Header.Set("Authorization", c.auth)
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	return c.readResponse(resp)
-}
-
-func (c *Client) doRequestWithMethod(method, url string, body interface{}) ([]byte, error) {
-	var bodyReader io.Reader
-	if body != nil {
-		jsonBytes, _ := json.Marshal(body)
-		bodyReader = bytes.NewBuffer(jsonBytes)
-	}
-
-	req, err := http.NewRequest(method, url, bodyReader)
-	if err != nil {
-		return nil, err
-	}
-
-	headers := c.getHeaders(method)
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-
-	if c.auth != "" {
-		req.Header.Set("Authorization", c.auth)
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	return c.readResponse(resp)
 }
 
 func (c *Client) readResponse(resp *http.Response) ([]byte, error) {
@@ -115,78 +68,155 @@ func (c *Client) readResponse(resp *http.Response) ([]byte, error) {
 	} else {
 		reader = resp.Body
 	}
-
 	return io.ReadAll(reader)
 }
+
+func (c *Client) decryptData(data string) (string, error) {
+	dataB64, err := base64.StdEncoding.DecodeString(data)
+	if err != nil {
+		return "", err
+	}
+	param := fmt.Sprintf("%d%s", c.ts, appDataSecret)
+	key := fmt.Sprintf("%x", md5.Sum([]byte(param)))[:16]
+	block, err := aes.NewCipher([]byte(key))
+	if err != nil {
+		return "", err
+	}
+	blockSize := block.BlockSize()
+	if len(dataB64)%blockSize != 0 {
+		return "", fmt.Errorf("data not aligned to block size: %d %% %d", len(dataB64), blockSize)
+	}
+	decrypted := make([]byte, len(dataB64))
+	for i := 0; i < len(dataB64); i += blockSize {
+		block.Decrypt(decrypted[i:i+blockSize], dataB64[i:i+blockSize])
+	}
+	padding := int(decrypted[len(decrypted)-1])
+	if padding > len(decrypted) || padding > blockSize {
+		return string(decrypted), nil
+	}
+	decrypted = decrypted[:len(decrypted)-padding]
+	return string(decrypted), nil
+}
+
+func (c *Client) doRequest(path string) ([]byte, error) {
+	req, err := http.NewRequest("GET", c.baseURL+path, nil)
+	if err != nil {
+		return nil, err
+	}
+	return c.executeRequest(req, "GET")
+}
+
+func (c *Client) doPost(path string, data url.Values) ([]byte, error) {
+	encoded := data.Encode()
+	req, err := http.NewRequest("POST", c.baseURL+path, io.NopCloser(bytes.NewBufferString(encoded)))
+	if err != nil {
+		return nil, err
+	}
+	req.ContentLength = int64(len(encoded))
+	return c.executeRequest(req, "POST")
+}
+
+func (c *Client) executeRequest(req *http.Request, method string) ([]byte, error) {
+	headers := c.getHeaders(method)
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	if c.auth != "" {
+		req.Header.Set("Authorization", c.auth)
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := c.readResponse(resp)
+	if err != nil {
+		return nil, err
+	}
+
+	var rawResp struct {
+		Code     int    `json:"code"`
+		Data     string `json:"data"`
+		ErrorMsg string `json:"errorMsg"`
+	}
+	if err := json.Unmarshal(body, &rawResp); err != nil {
+		return body, nil
+	}
+	if rawResp.Code == 200 && rawResp.Data != "" && len(rawResp.Data) > 50 {
+		decrypted, err := c.decryptData(rawResp.Data)
+		if err != nil {
+			log.Warnf("decrypt failed: %v", err)
+			return body, nil
+		}
+		rawResp.Data = decrypted
+		modified, _ := json.Marshal(rawResp)
+		return modified, nil
+	}
+	return body, nil
+}
+
+func (c *Client) get(path string, params map[string]string) ([]byte, error) {
+	fullPath := path
+	if len(params) > 0 {
+		values := url.Values{}
+		for k, v := range params {
+			values.Set(k, v)
+		}
+		fullPath = path + "/?" + values.Encode()
+	}
+	return c.doRequest(fullPath)
+}
+
+// ==================== 搜索 ====================
 
 func (c *Client) Search(query string, page int) (*SearchResult, error) {
 	if page < 1 {
 		page = 1
 	}
-
 	offset := (page - 1) * 20
-	searchURL := fmt.Sprintf("%s/api/search?query=%s&offset=%d&limit=20", c.baseURL, url.QueryEscape(query), offset)
-
-	body, err := c.doRequest(searchURL)
+	body, err := c.get("/api/search", map[string]string{
+		"query":  query,
+		"offset": fmt.Sprintf("%d", offset),
+		"limit":  "20",
+	})
 	if err != nil {
-		log.Errorf("Search failed: %v", err)
 		return nil, err
 	}
+	return c.parseComicList(body, page)
+}
 
-	var resp APIResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
+func (c *Client) GetIndexInfo(page int) (*SearchResult, error) {
+	body, err := c.get("/promote", map[string]string{"page": fmt.Sprintf("%d", page)})
+	if err != nil {
 		return nil, err
 	}
+	return c.parseComicList(body, page+1)
+}
 
-	dataBytes, _ := json.Marshal(resp.Data)
-	var searchData SearchData
-	if err := json.Unmarshal(dataBytes, &searchData); err != nil {
+func (c *Client) GetLatest(page int) (*SearchResult, error) {
+	body, err := c.get("/latest", map[string]string{"page": fmt.Sprintf("%d", page)})
+	if err != nil {
 		return nil, err
 	}
-
-	results := make([]ComicItem, len(searchData.List))
-	for i, item := range searchData.List {
-		author := ""
-		if len(item.Author) > 0 {
-			author = item.Author[0].Name
-		}
-		results[i] = ComicItem{
-			ID:       item.PathWord,
-			Title:    item.Name,
-			Author:   author,
-			CoverURL: item.Cover,
-		}
-	}
-
-	totalPages := 1
-	if searchData.Limit > 0 {
-		totalPages = (searchData.Total + searchData.Limit - 1) / searchData.Limit
-	}
-
-	return &SearchResult{
-		Items:      results,
-		TotalPages: totalPages,
-		Page:       page,
-	}, nil
+	return c.parseComicList(body, page+1)
 }
 
 func (c *Client) GetComicDetail(comicID string) (*ComicDetail, error) {
-	detailURL := fmt.Sprintf("%s/api/comic/%s", c.baseURL, comicID)
-
-	body, err := c.doRequest(detailURL)
+	body, err := c.doRequest("/api/comic/" + comicID)
 	if err != nil {
-		log.Errorf("Get comic detail failed: %v", err)
 		return nil, err
 	}
-
-	var resp APIResponse
+	var resp struct {
+		Code int             `json:"code"`
+		Data json.RawMessage `json:"data"`
+	}
 	if err := json.Unmarshal(body, &resp); err != nil {
 		return nil, err
 	}
 
-	dataBytes, _ := json.Marshal(resp.Data)
 	var detail ComicDetailData
-	if err := json.Unmarshal(dataBytes, &detail); err != nil {
+	if err := json.Unmarshal(resp.Data, &detail); err != nil {
 		return nil, err
 	}
 
@@ -194,7 +224,6 @@ func (c *Client) GetComicDetail(comicID string) (*ComicDetail, error) {
 	if len(detail.Author) > 0 {
 		author = detail.Author[0].Name
 	}
-
 	tags := make([]string, len(detail.Tags))
 	for i, t := range detail.Tags {
 		tags[i] = t.Name
@@ -213,22 +242,20 @@ func (c *Client) GetComicDetail(comicID string) (*ComicDetail, error) {
 }
 
 func (c *Client) GetChapters(comicID string) ([]ChapterItem, error) {
-	chaptersURL := fmt.Sprintf("%s/api/comic/%s/chapters", c.baseURL, comicID)
-
-	body, err := c.doRequest(chaptersURL)
+	body, err := c.doRequest("/api/comic/" + comicID + "/chapters")
 	if err != nil {
-		log.Errorf("Get chapters failed: %v", err)
 		return nil, err
 	}
-
-	var resp APIResponse
+	var resp struct {
+		Code int             `json:"code"`
+		Data json.RawMessage `json:"data"`
+	}
 	if err := json.Unmarshal(body, &resp); err != nil {
 		return nil, err
 	}
 
-	dataBytes, _ := json.Marshal(resp.Data)
 	var chapters []ChapterData
-	if err := json.Unmarshal(dataBytes, &chapters); err != nil {
+	if err := json.Unmarshal(resp.Data, &chapters); err != nil {
 		return nil, err
 	}
 
@@ -240,154 +267,211 @@ func (c *Client) GetChapters(comicID string) ([]ChapterItem, error) {
 			SortOrder: i,
 		}
 	}
-
 	return items, nil
 }
 
 func (c *Client) GetChapterImages(chapterID string) ([]string, error) {
-	chapterURL := fmt.Sprintf("%s/api/chapter/%s", c.baseURL, chapterID)
-
-	body, err := c.doRequest(chapterURL)
+	body, err := c.doRequest("/api/chapter/" + chapterID)
 	if err != nil {
-		log.Errorf("Get chapter images failed: %v", err)
 		return nil, err
 	}
-
-	var resp APIResponse
+	var resp struct {
+		Code int             `json:"code"`
+		Data json.RawMessage `json:"data"`
+	}
 	if err := json.Unmarshal(body, &resp); err != nil {
 		return nil, err
 	}
 
-	dataBytes, _ := json.Marshal(resp.Data)
 	var imagesData ImagesData
-	if err := json.Unmarshal(dataBytes, &imagesData); err != nil {
+	if err := json.Unmarshal(resp.Data, &imagesData); err != nil {
 		return nil, err
 	}
-
 	return imagesData.Images, nil
 }
 
 func (c *Client) GetCategories() ([]CategoryItem, error) {
-	categoriesURL := fmt.Sprintf("%s/api/categories", c.baseURL)
-
-	body, err := c.doRequest(categoriesURL)
+	body, err := c.doRequest("/api/categories")
 	if err != nil {
-		log.Errorf("Get categories failed: %v", err)
 		return nil, err
 	}
-
-	var resp APIResponse
+	var resp struct {
+		Code int             `json:"code"`
+		Data json.RawMessage `json:"data"`
+	}
 	if err := json.Unmarshal(body, &resp); err != nil {
 		return nil, err
 	}
 
-	dataBytes, _ := json.Marshal(resp.Data)
 	var categories []CategoryData
-	if err := json.Unmarshal(dataBytes, &categories); err != nil {
+	if err := json.Unmarshal(resp.Data, &categories); err != nil {
 		return nil, err
 	}
-
 	items := make([]CategoryItem, len(categories))
 	for i, cat := range categories {
-		items[i] = CategoryItem{
-			ID:   cat.PathWord,
-			Name: cat.Name,
-		}
+		items[i] = CategoryItem{ID: cat.PathWord, Name: cat.Name}
 	}
-
 	return items, nil
 }
 
-func (c *Client) GetIndexInfo(page int) (*SearchResult, error) {
-	if page < 1 {
-		page = 0
-	}
-
-	indexURL := fmt.Sprintf("%s/promote?page=%d", c.baseURL, page)
-
-	body, err := c.doRequest(indexURL)
-	if err != nil {
-		log.Errorf("Get index info failed: %v", err)
-		return nil, err
-	}
-
-	return c.parseComicList(body, page)
-}
-
-func (c *Client) GetLatest(page int) (*SearchResult, error) {
-	if page < 1 {
-		page = 0
-	}
-
-	latestURL := fmt.Sprintf("%s/latest?page=%d", c.baseURL, page)
-
-	body, err := c.doRequest(latestURL)
-	if err != nil {
-		log.Errorf("Get latest failed: %v", err)
-		return nil, err
-	}
-
-	return c.parseComicList(body, page)
-}
-
-func (c *Client) parseComicList(body []byte, page int) (*SearchResult, error) {
-	var resp APIResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, err
-	}
-
-	dataBytes, _ := json.Marshal(resp.Data)
-	var searchData SearchData
-	if err := json.Unmarshal(dataBytes, &searchData); err != nil {
-		return nil, err
-	}
-
-	results := make([]ComicItem, len(searchData.List))
-	for i, item := range searchData.List {
-		author := ""
-		if len(item.Author) > 0 {
-			author = item.Author[0].Name
-		}
-		results[i] = ComicItem{
-			ID:       item.PathWord,
-			Title:    item.Name,
-			Author:   author,
-			CoverURL: item.Cover,
-		}
-	}
-
-	totalPages := 1
-	if searchData.Limit > 0 {
-		totalPages = (searchData.Total + searchData.Limit - 1) / searchData.Limit
-	}
-
-	return &SearchResult{
-		Items:      results,
-		TotalPages: totalPages,
-		Page:       page + 1,
-	}, nil
-}
+func (c *Client) GetRanking(rankType string, page int) (*SearchResult, error) {
 	if page < 1 {
 		page = 1
 	}
-
-	offset := (page - 1) * 20
-	rankingURL := fmt.Sprintf("%s/api/ranking?type=%s&offset=%d&limit=20", c.baseURL, rankType, offset)
-
-	body, err := c.doRequest(rankingURL)
+	body, err := c.get("/api/ranking", map[string]string{
+		"type":   rankType,
+		"offset": fmt.Sprintf("%d", (page-1)*20),
+		"limit":  "20",
+	})
 	if err != nil {
-		log.Errorf("Get ranking failed: %v", err)
 		return nil, err
 	}
+	return c.parseComicList(body, page)
+}
 
-	var resp APIResponse
+func (c *Client) GetComments(comicID string, page int) ([]CommentItem, error) {
+	body, err := c.get("/api/comic/"+comicID+"/comments", map[string]string{
+		"offset": fmt.Sprintf("%d", (page-1)*20),
+		"limit":  "20",
+	})
+	if err != nil {
+		return nil, err
+	}
+	var resp struct {
+		Code int             `json:"code"`
+		Data json.RawMessage `json:"data"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, err
+	}
+	var comments []CommentData
+	if err := json.Unmarshal(resp.Data, &comments); err != nil {
+		return nil, err
+	}
+	items := make([]CommentItem, len(comments))
+	for i, comment := range comments {
+		items[i] = CommentItem{
+			ID:         comment.ID,
+			Content:    comment.Content,
+			Author:     comment.Author,
+			Avatar:     comment.Avatar,
+			LikeCount:  comment.LikeCount,
+			CreateTime: comment.CreateTime,
+		}
+	}
+	return items, nil
+}
+
+func (c *Client) GetSubComments(commentID string, page int) ([]CommentItem, error) {
+	body, err := c.get("/api/comment/"+commentID+"/sub", map[string]string{
+		"offset": fmt.Sprintf("%d", (page-1)*20),
+		"limit":  "20",
+	})
+	if err != nil {
+		return nil, err
+	}
+	var resp struct {
+		Code int             `json:"code"`
+		Data json.RawMessage `json:"data"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, err
+	}
+	var comments []CommentData
+	if err := json.Unmarshal(resp.Data, &comments); err != nil {
+		return nil, err
+	}
+	items := make([]CommentItem, len(comments))
+	for i, comment := range comments {
+		items[i] = CommentItem{
+			ID:         comment.ID,
+			Content:    comment.Content,
+			Author:     comment.Author,
+			Avatar:     comment.Avatar,
+			LikeCount:  comment.LikeCount,
+			CreateTime: comment.CreateTime,
+		}
+	}
+	return items, nil
+}
+
+func (c *Client) Login(username, password string) (string, error) {
+	body, err := c.doPost("/login", url.Values{
+		"username": {username},
+		"password": {password},
+	})
+	if err != nil {
+		return "", err
+	}
+
+	var loginResp struct {
+		Code     int    `json:"code"`
+		Data     string `json:"data"`
+		ErrorMsg string `json:"errorMsg"`
+	}
+	if err := json.Unmarshal(body, &loginResp); err != nil {
+		return "", fmt.Errorf("parse failed: %s", string(body))
+	}
+
+	if loginResp.Code != 200 {
+		return "", fmt.Errorf("login failed: %s", loginResp.ErrorMsg)
+	}
+
+	c.auth = loginResp.Data
+	return loginResp.Data, nil
+}
+
+func (c *Client) Register(username, email, password, passwordConfirm, gender string) error {
+	_, err := c.doPost("/signup", url.Values{
+		"username":         {username},
+		"email":            {email},
+		"password":         {password},
+		"password_confirm": {passwordConfirm},
+		"gender":           {gender},
+		"age":              {"on"},
+		"terms":            {"on"},
+		"submit_signup":    {""},
+	})
+	return err
+}
+
+func (c *Client) GetUserInfo() (*UserInfo, error) {
+	body, err := c.doRequest("/api/user/info")
+	if err != nil {
+		return nil, err
+	}
+	var resp struct {
+		Code int             `json:"code"`
+		Data json.RawMessage `json:"data"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, err
+	}
+	var userInfo UserInfo
+	if err := json.Unmarshal(resp.Data, &userInfo); err != nil {
+		return nil, err
+	}
+	return &userInfo, nil
+}
+
+func (c *Client) Sign() error {
+	_, err := c.doRequest("/api/user/sign")
+	return err
+}
+
+// ==================== 解析通用漫画列表 ====================
+
+func (c *Client) parseComicList(body []byte, page int) (*SearchResult, error) {
+	var resp struct {
+		Code int             `json:"code"`
+		Data json.RawMessage `json:"data"`
+	}
 	if err := json.Unmarshal(body, &resp); err != nil {
 		return nil, err
 	}
 
-	dataBytes, _ := json.Marshal(resp.Data)
 	var searchData SearchData
-	if err := json.Unmarshal(dataBytes, &searchData); err != nil {
+	if err := json.Unmarshal(resp.Data, &searchData); err != nil {
 		return nil, err
 	}
 
@@ -415,221 +499,4 @@ func (c *Client) parseComicList(body []byte, page int) (*SearchResult, error) {
 		TotalPages: totalPages,
 		Page:       page,
 	}, nil
-}
-
-func (c *Client) GetComments(comicID string, page int) ([]CommentItem, error) {
-	if page < 1 {
-		page = 1
-	}
-
-	offset := (page - 1) * 20
-	commentsURL := fmt.Sprintf("%s/api/comic/%s/comments?offset=%d&limit=20", c.baseURL, comicID, offset)
-
-	body, err := c.doRequest(commentsURL)
-	if err != nil {
-		log.Errorf("Get comments failed: %v", err)
-		return nil, err
-	}
-
-	var resp APIResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, err
-	}
-
-	dataBytes, _ := json.Marshal(resp.Data)
-	var comments []CommentData
-	if err := json.Unmarshal(dataBytes, &comments); err != nil {
-		return nil, err
-	}
-
-	items := make([]CommentItem, len(comments))
-	for i, comment := range comments {
-		items[i] = CommentItem{
-			ID:        comment.ID,
-			Content:   comment.Content,
-			Author:    comment.Author,
-			Avatar:    comment.Avatar,
-			LikeCount: comment.LikeCount,
-			CreateTime: comment.CreateTime,
-		}
-	}
-
-	return items, nil
-}
-
-func (c *Client) GetSubComments(commentID string, page int) ([]CommentItem, error) {
-	if page < 1 {
-		page = 1
-	}
-
-	offset := (page - 1) * 20
-	commentsURL := fmt.Sprintf("%s/api/comment/%s/sub?offset=%d&limit=20", c.baseURL, commentID, offset)
-
-	body, err := c.doRequest(commentsURL)
-	if err != nil {
-		log.Errorf("Get sub comments failed: %v", err)
-		return nil, err
-	}
-
-	var resp APIResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, err
-	}
-
-	dataBytes, _ := json.Marshal(resp.Data)
-	var comments []CommentData
-	if err := json.Unmarshal(dataBytes, &comments); err != nil {
-		return nil, err
-	}
-
-	items := make([]CommentItem, len(comments))
-	for i, comment := range comments {
-		items[i] = CommentItem{
-			ID:        comment.ID,
-			Content:   comment.Content,
-			Author:    comment.Author,
-			Avatar:    comment.Avatar,
-			LikeCount: comment.LikeCount,
-			CreateTime: comment.CreateTime,
-		}
-	}
-
-	return items, nil
-}
-
-func (c *Client) Login(username, password string) (string, error) {
-	loginURL := fmt.Sprintf("%s/login", c.baseURL)
-
-	// 原版使用 URL编码格式
-	data := url.Values{}
-	data.Set("username", username)
-	data.Set("password", password)
-
-	req, err := http.NewRequest("POST", loginURL, bytes.NewBufferString(data.Encode()))
-	if err != nil {
-		return "", err
-	}
-
-	// 和原版一样的 headers
-	headers := c.getHeaders("POST")
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		log.Errorf("Login failed: %v", err)
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	body, err := c.readResponse(resp)
-	if err != nil {
-		return "", err
-	}
-
-	log.Infof("Login response: %s", string(body))
-
-	// 原版响应格式: {"code":200,"data":"...","errorMsg":""}
-	var loginResp LoginResponse
-	if err := json.Unmarshal(body, &loginResp); err != nil {
-		return "", fmt.Errorf("parse response failed: %s", string(body))
-	}
-
-	if loginResp.Code != 200 {
-		return "", fmt.Errorf("login failed: %s", loginResp.ErrorMsg)
-	}
-
-	// data 就是 token
-	c.auth = loginResp.Data
-	return loginResp.Data, nil
-}
-
-func (c *Client) Register(username, email, password, passwordConfirm, gender string) error {
-	registerURL := fmt.Sprintf("%s/signup", c.baseURL)
-
-	// 原版使用 URL编码格式
-	data := url.Values{}
-	data.Set("username", username)
-	data.Set("email", email)
-	data.Set("password", password)
-	data.Set("password_confirm", passwordConfirm)
-	data.Set("gender", gender)
-	data.Set("age", "on")
-	data.Set("terms", "on")
-	data.Set("submit_signup", "")
-
-	req, err := http.NewRequest("POST", registerURL, bytes.NewBufferString(data.Encode()))
-	if err != nil {
-		return err
-	}
-
-	// 原版使用 WebHeader
-	req.Header.Set("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
-	req.Header.Set("accept-encoding", "gzip, deflate, br")
-	req.Header.Set("accept-language", "zh-CN,zh;q=0.9")
-	req.Header.Set("upgrade-insecure-requests", "1")
-	req.Header.Set("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 Edg/114.0.1823.43")
-	req.Header.Set("content-type", "application/x-www-form-urlencoded")
-	req.Header.Set("referer", registerURL)
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		log.Errorf("Register failed: %v", err)
-		return err
-	}
-	defer resp.Body.Close()
-
-	body, err := c.readResponse(resp)
-	if err != nil {
-		return err
-	}
-
-	log.Infof("Register response: %s", string(body))
-
-	var registerResp APIResponse
-	if err := json.Unmarshal(body, &registerResp); err != nil {
-		return err
-	}
-
-	if !registerResp.Success {
-		return fmt.Errorf("register failed")
-	}
-
-	return nil
-}
-
-func (c *Client) GetUserInfo() (*UserInfo, error) {
-	userInfoURL := fmt.Sprintf("%s/api/user/info", c.baseURL)
-
-	body, err := c.doRequest(userInfoURL)
-	if err != nil {
-		log.Errorf("Get user info failed: %v", err)
-		return nil, err
-	}
-
-	var resp APIResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, err
-	}
-
-	dataBytes, _ := json.Marshal(resp.Data)
-	var userInfo UserInfo
-	if err := json.Unmarshal(dataBytes, &userInfo); err != nil {
-		return nil, err
-	}
-
-	return &userInfo, nil
-}
-
-func (c *Client) Sign() error {
-	signURL := fmt.Sprintf("%s/api/user/sign", c.baseURL)
-
-	_, err := c.doRequestWithMethod("POST", signURL, nil)
-	if err != nil {
-		log.Errorf("Sign failed: %v", err)
-		return err
-	}
-
-	return nil
 }
