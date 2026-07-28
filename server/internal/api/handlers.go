@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/Mogvl/JM-Web/server/internal/model"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 )
@@ -39,17 +38,6 @@ func (r *Router) GetComic(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get comic"})
 		return
 	}
-
-	r.db.SaveComic(&model.Comic{
-		ID:          comic.ID,
-		Title:       comic.Title,
-		Author:      comic.Author,
-		Description: comic.Description,
-		CoverURL:    comic.CoverURL,
-		Tags:        joinStrings(comic.Tags),
-		Category:    comic.Category,
-		Status:      comic.Status,
-	})
 
 	c.JSON(http.StatusOK, comic)
 }

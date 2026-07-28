@@ -2,18 +2,6 @@ package crawler
 
 import "encoding/json"
 
-type APIResponse struct {
-	Data    interface{} `json:"data"`
-	Success bool        `json:"success"`
-}
-
-type SearchData struct {
-	List   []RawComicItem `json:"list"`
-	Total  int            `json:"total"`
-	Limit  int            `json:"limit"`
-	Offset int            `json:"offset"`
-}
-
 type RawComicItem struct {
 	Name     string          `json:"name"`
 	PathWord string          `json:"path_word"`
@@ -23,41 +11,50 @@ type RawComicItem struct {
 	Author   json.RawMessage `json:"author"`
 }
 
+type ComicItem struct {
+	ID       string `json:"id"`
+	Title    string `json:"title"`
+	Author   string `json:"author"`
+	CoverURL string `json:"cover_url"`
+}
+
+type ChapterItem struct {
+	ID        string `json:"id"`
+	Title     string `json:"title"`
+	SortOrder int    `json:"sort_order"`
+}
+
+type SearchResult struct {
+	Items      []ComicItem `json:"items"`
+	TotalPages int         `json:"total_pages"`
+	Page       int         `json:"page"`
+}
+
+type SearchData struct {
+	List   []RawComicItem `json:"list"`
+	Total  int            `json:"total"`
+	Limit  int            `json:"limit"`
+	Offset int            `json:"offset"`
+}
+
 type Author struct {
 	Name     string `json:"name"`
 	PathWord string `json:"path_word"`
-}
-
-type ComicDetailData struct {
-	Name        string          `json:"name"`
-	PathWord    string          `json:"path_word"`
-	ID          json.Number     `json:"id"`
-	Cover       string          `json:"cover"`
-	Image       string          `json:"image"`
-	Description string          `json:"description"`
-	Author      json.RawMessage `json:"author"`
-	Tags        json.RawMessage `json:"tags"`
-	Category    string          `json:"category"`
-	Status      string          `json:"status"`
 }
 
 type Tag struct {
 	Name string `json:"name"`
 }
 
-type ChapterData struct {
-	Name     string `json:"name"`
-	PathWord string `json:"path_word"`
-}
-
-type ImagesData struct {
-	Images []string `json:"images"`
-}
-
 type CategoryData struct {
 	ID       json.Number `json:"id"`
 	Name     string      `json:"name"`
 	PathWord string      `json:"slug"`
+}
+
+type CategoryItem struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 type CommentData struct {
@@ -69,42 +66,6 @@ type CommentData struct {
 	CreateTime string `json:"create_time"`
 }
 
-type LoginResponse struct {
-	Code     int    `json:"code"`
-	Data     string `json:"data"`
-	ErrorMsg string `json:"errorMsg"`
-}
-
-type ComicItem struct {
-	ID       string `json:"id"`
-	Title    string `json:"title"`
-	Author   string `json:"author"`
-	CoverURL string `json:"cover_url"`
-}
-
-type ComicDetail struct {
-	ID          string        `json:"id"`
-	Title       string        `json:"title"`
-	Author      string        `json:"author"`
-	Description string        `json:"description"`
-	CoverURL    string        `json:"cover_url"`
-	Tags        []string      `json:"tags"`
-	Category    string        `json:"category"`
-	Status      string        `json:"status"`
-	Chapters    []ChapterItem `json:"chapters"`
-}
-
-type ChapterItem struct {
-	ID        string `json:"id"`
-	Title     string `json:"title"`
-	SortOrder int    `json:"sort_order"`
-}
-
-type CategoryItem struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-}
-
 type CommentItem struct {
 	ID         string `json:"id"`
 	Content    string `json:"content"`
@@ -114,16 +75,30 @@ type CommentItem struct {
 	CreateTime string `json:"create_time"`
 }
 
-type UserInfo struct {
-	Username string `json:"username"`
-	Avatar   string `json:"avatar"`
-	Coins    int    `json:"coins"`
-	Level    int    `json:"level"`
-	Favorites int   `json:"favorites"`
+type AlbumDetail struct {
+	ID           string        `json:"id"`
+	Title        string        `json:"title"`
+	Author       string        `json:"author"`
+	Tags         []string      `json:"tags"`
+	Description  string        `json:"description"`
+	CoverURL     string        `json:"cover_url"`
+	TotalPhotos  int           `json:"total_photos"`
+	TotalViews   string        `json:"total_views"`
+	Likes        string        `json:"likes"`
+	CommentTotal string        `json:"comment_total"`
+	Chapters     []ChapterItem `json:"chapters"`
 }
 
-type SearchResult struct {
-	Items      []ComicItem `json:"items"`
-	TotalPages int         `json:"total_pages"`
-	Page       int         `json:"page"`
+type LoginUserData struct {
+	UID           string `json:"uid"`
+	Username      string `json:"username"`
+	Email         string `json:"email"`
+	Photo         string `json:"photo"`
+	Gender        string `json:"gender"`
+	Coin          int    `json:"coin"`
+	Level         int    `json:"level"`
+	LevelName     string `json:"level_name"`
+	Exp           string `json:"exp"`
+	AlbumFavorites int   `json:"album_favorites"`
+	JWTToken      string `json:"jwttoken"`
 }
