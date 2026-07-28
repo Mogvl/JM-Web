@@ -15,7 +15,7 @@ services:
       - GIN_MODE=release
       - DB_PATH=/data/jmcomic.db
       - DOWNLOAD_DIR=/data/downloads
-      - JM_BASE_URL=https://jmcomic.me
+      - JM_BASE_URL=https://www.cdnhjk.net
       - TZ=Asia/Shanghai
     volumes:
       - /volume1/jm:/data/downloads
