@@ -178,31 +178,18 @@ func (c *Client) Search(query string, page int, sort string) (*SearchResult, err
 		page = 1
 	}
 	offset := (page - 1) * 20
-	params := map[string]string{
+	body, err := c.get("/api/search", map[string]string{
 		"query":  query,
 		"offset": fmt.Sprintf("%d", offset),
 		"limit":  "20",
-	}
-	if sort != "" {
-		params["o"] = sort
-	}
-	body, err := c.get("/api/search", params)
+	})
 	if err != nil {
 		return nil, err
 	}
 
 	result, err := c.parseAnyList(body, page)
 	if err != nil {
-		// 尝试直接解析为最新格式
-		var fallback struct {
-			Code int `json:"code"`
-			Data json.RawMessage `json:"data"`
-		}
-		if json.Unmarshal(body, &fallback) == nil && fallback.Code == 200 {
-			// data 可能是空数组或空对象
-			return &SearchResult{Items: []ComicItem{}, Page: page}, nil
-		}
-		return nil, err
+		return &SearchResult{Items: []ComicItem{}, Page: page}, nil
 	}
 	return result, nil
 }
