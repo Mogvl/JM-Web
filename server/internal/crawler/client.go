@@ -191,11 +191,37 @@ func (c *Client) Search(query string, page int, sort string) (*SearchResult, err
 		return nil, err
 	}
 
-	result, err := c.parseAnyList(body, page)
-	if err != nil {
+	// 尝试解析搜索格式: {data: {search_query,total,content:[{id,name,author,image}]}}
+	var resp struct {
+		Code int             `json:"code"`
+		Data json.RawMessage `json:"data"`
+	}
+	if json.Unmarshal(body, &resp) == nil {
+		var searchResult struct {
+			Total   int               `json:"total"`
+			Content []json.RawMessage `json:"content"`
+		}
+		if json.Unmarshal(resp.Data, &searchResult) == nil && len(searchResult.Content) > 0 {
+			items := make([]ComicItem, len(searchResult.Content))
+			for i, item := range searchResult.Content {
+				var raw RawComicItem
+				if json.Unmarshal(item, &raw) == nil {
+					items[i] = rawToComicItem(raw)
+				}
+			}
+			totalPages := (searchResult.Total + 19) / 20
+			return &SearchResult{Items: items, TotalPages: totalPages, Page: page}, nil
+		}
+
+		result, err := c.parseAnyList(body, page)
+		if err == nil {
+			return result, nil
+		}
+		// 返回空结果
 		return &SearchResult{Items: []ComicItem{}, Page: page}, nil
 	}
-	return result, nil
+
+	return c.parseAnyList(body, page)
 }
 
 func (c *Client) GetLatest(page int) (*SearchResult, error) {
