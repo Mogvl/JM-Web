@@ -39,7 +39,7 @@ func (c *Client) getHeaders(method string) map[string]string {
 		"tokenparam":     fmt.Sprintf("%d,2.0.26", now),
 		"token":          token,
 		"accept-encoding": "gzip",
-		"version":        "1.7.5",
+		"version":        "v1.3.4",
 	}
 
 	if method == "POST" {
