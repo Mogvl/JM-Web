@@ -113,9 +113,12 @@ func (r *Router) GetFavorites(c *gin.Context) {
 	// 在线获取收藏
 	online, err := r.client.GetOnlineFavorites(page)
 	if err != nil {
+		log.Warnf("Get online favorites failed: %v", err)
 		c.JSON(http.StatusOK, []interface{}{})
 		return
 	}
+
+	log.Infof("Online favorites: %d items", len(online.Items))
 
 	// 转换为前端格式: {id, comic_id, comic: {title, cover_url}}
 	result := make([]map[string]interface{}, len(online.Items))
