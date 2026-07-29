@@ -17,14 +17,34 @@ def download(jm_id, output_dir, image_format='jpg'):
     output_dir = os.path.abspath(output_dir)
     os.makedirs(output_dir, exist_ok=True)
 
-    # 配置下载选项
+    # 配置下载选项 - 始终下载 webp
     option = JmOption.default()
     option.dir_rule.download_dir = output_dir
     option.dir_rule.base_rule = 'Bd_Aid'
-    option.image_format = image_format
+    option.image_format = 'webp'
 
     # 下载（自动处理 descramble）
     download_album(jm_id, option)
+
+    # 如果需要 jpg/png，下载后转换
+    if image_format != 'webp':
+        from PIL import Image
+        for root, dirs, files in os.walk(output_dir):
+            for f in files:
+                if f.endswith('.webp'):
+                    webp_path = os.path.join(root, f)
+                    new_name = f.replace('.webp', f'.{image_format}')
+                    new_path = os.path.join(root, new_name)
+                    try:
+                        img = Image.open(webp_path)
+                        if image_format in ('jpg', 'jpeg'):
+                            img = img.convert('RGB')
+                            img.save(new_path, 'JPEG', quality=95)
+                        elif image_format == 'png':
+                            img.save(new_path, 'PNG')
+                        os.remove(webp_path)
+                    except Exception as e:
+                        pass  # 转换失败保留 webp
 
     # 统计结果
     total = 0

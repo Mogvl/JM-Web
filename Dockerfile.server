@@ -5,10 +5,12 @@ RUN go mod download
 COPY server/ .
 RUN go build -o /app/server ./cmd/main.go
 
-FROM alpine:latest
-RUN apk add --no-cache ca-certificates
+FROM python:3.12-alpine
+RUN apk add --no-cache ca-certificates gcc musl-dev
+RUN pip install --no-cache-dir jmcomic pillow
 WORKDIR /app
 COPY --from=builder /app/server .
+COPY server/download_jm.py .
 RUN mkdir -p /app/data/downloads
 EXPOSE 5001
 ENV PORT=5001
