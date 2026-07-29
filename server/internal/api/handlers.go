@@ -571,8 +571,15 @@ func (r *Router) processDownload(downloadID int, comicID string, format string) 
 			if imgURL == "" {
 				continue
 			}
-			// 始终下载原图（webp），按所选格式命名
-			imgPath := filepath.Join(chapterDir, fmt.Sprintf("%03d.%s", j+1, targetExt))
+			// 从URL提取原始扩展名
+			ext := "webp"
+			if lastDot := strings.LastIndex(imgURL, "."); lastDot > 0 {
+				rawExt := strings.ToLower(imgURL[lastDot+1:])
+				if rawExt == "jpg" || rawExt == "png" || rawExt == "gif" || rawExt == "webp" {
+					ext = rawExt
+				}
+			}
+			imgPath := filepath.Join(chapterDir, fmt.Sprintf("%03d.%s", j+1, ext))
 			if err := r.client.DownloadImage(imgURL, imgPath); err != nil {
 				log.Warnf("Download image %s failed: %v", imgURL, err)
 				continue
