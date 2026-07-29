@@ -2,6 +2,9 @@ package api
 
 import (
 	"fmt"
+	"image"
+	"image/jpeg"
+	"image/png"
 	"io"
 	"net/http"
 	"os"
@@ -13,6 +16,7 @@ import (
 	"github.com/Mogvl/JM-Web/server/internal/model"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
+	_ "golang.org/x/image/webp"
 )
 
 // ==================== 搜索和浏览 ====================
@@ -571,18 +575,17 @@ func (r *Router) processDownload(downloadID int, comicID string, format string) 
 			if imgURL == "" {
 				continue
 			}
-			// 从URL提取原始扩展名
-			ext := "webp"
-			if lastDot := strings.LastIndex(imgURL, "."); lastDot > 0 {
-				rawExt := strings.ToLower(imgURL[lastDot+1:])
-				if rawExt == "jpg" || rawExt == "png" || rawExt == "gif" || rawExt == "webp" {
-					ext = rawExt
-				}
-			}
-			imgPath := filepath.Join(chapterDir, fmt.Sprintf("%03d.%s", j+1, ext))
+			imgPath := filepath.Join(chapterDir, fmt.Sprintf("%03d.webp", j+1))
 			if err := r.client.DownloadImage(imgURL, imgPath); err != nil {
 				log.Warnf("Download image %s failed: %v", imgURL, err)
 				continue
+			}
+			// 格式转换（原版用 PIL Image.save("path", "JPEG")）
+			if targetExt != "webp" {
+				jpgPath := filepath.Join(chapterDir, fmt.Sprintf("%03d.%s", j+1, targetExt))
+				if err := convertWebpTo(imgPath, jpgPath, targetExt); err == nil {
+					os.Remove(imgPath)
+				}
 			}
 			downloadedImgs++
 		}
@@ -595,6 +598,34 @@ func (r *Router) processDownload(downloadID int, comicID string, format string) 
 }
 
 func maxInt(a, b int) int { if a > b { return a }; return b }
+
+func convertWebpTo(src, dst, format string) error {
+	f, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	img, _, err := image.Decode(f)
+	if err != nil {
+		return err
+	}
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	switch format {
+	case "jpg", "jpeg":
+		return jpeg.Encode(out, img, &jpeg.Options{Quality: 95})
+	case "png":
+		return png.Encode(out, img)
+	default:
+		return fmt.Errorf("unsupported format: %s", format)
+	}
+}
 
 func sanitizeFilename(name string) string {
 	name = strings.TrimSpace(name)
