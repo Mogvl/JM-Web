@@ -585,9 +585,12 @@ func (r *Router) processDownload(downloadID int, comicID string, format string) 
 			if ci.scrambleID > 0 {
 				picName := filepath.Base(imgURL)
 				num := crawler.GetSegmentationNum(ci.chapter.ID, ci.scrambleID, picName)
+				log.Infof("Descramble: chapter=%s, scrambleID=%d, num=%d, pic=%s", ci.chapter.ID, ci.scrambleID, num, picName)
 				if num > 1 {
 					descrambleWebp(imgPath, num)
 				}
+			} else {
+				log.Infof("No scramble: chapter=%s", ci.chapter.ID)
 			}
 			// 格式转换
 			if targetExt != "webp" {
