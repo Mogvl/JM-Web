@@ -13,6 +13,10 @@ def download(jm_id, output_dir, image_format='jpg'):
     """使用 jmcomic 库下载并正确处理图片"""
     from jmcomic import JmOption, download_album
 
+    # 确保使用绝对路径
+    output_dir = os.path.abspath(output_dir)
+    os.makedirs(output_dir, exist_ok=True)
+
     # 配置下载选项
     option = JmOption.default()
     option.dir_rule.download_dir = output_dir
