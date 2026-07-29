@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -35,8 +36,11 @@ func (r *Router) processDownload(downloadID int, comicID string, format string) 
 	}
 
 	// 调用官方 Python jmcomic 库下载（自动处理图片重组/格式转换）
-	scriptPath := filepath.Join(".", "download_jm.py")
-	cmd := exec.Command("python", scriptPath, comicID, comicDir, targetFmt)
+	scriptPath, _ := filepath.Abs("download_jm.py")
+	absDir, _ := filepath.Abs(comicDir)
+	os.MkdirAll(absDir, 0755)
+	cmd := exec.Command("python", scriptPath, comicID, absDir, targetFmt)
+	cmd.Dir = absDir // 设置工作目录为下载目录
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Errorf("Python download failed: %v, output: %s", err, string(out))
