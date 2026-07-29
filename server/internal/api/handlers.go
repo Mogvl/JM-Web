@@ -582,18 +582,14 @@ func (r *Router) processDownload(downloadID int, comicID string, format string) 
 				log.Warnf("Download image %s failed: %v", imgURL, err)
 				continue
 			}
-			// 图片重排（原版 SegmentationPictureToDisk）
-			if ci.scrambleID > 0 {
-				picName := filepath.Base(imgURL)
-				num := crawler.GetSegmentationNum(ci.chapter.ID, ci.scrambleID, picName)
-				log.Infof("Descramble: chapter=%s, scrambleID=%d, num=%d, pic=%s", ci.chapter.ID, ci.scrambleID, num, picName)
-				if num > 1 {
-					descrambleWebp(imgPath, num)
-				}
-			} else {
-				log.Infof("No scramble: chapter=%s", ci.chapter.ID)
+			// 图片重排（官方 jmcomic 库算法）
+		if ci.scrambleID > 0 {
+			picName := filepath.Base(imgURL)
+			num := crawler.GetSegmentationNum(ci.chapter.ID, ci.scrambleID, picName)
+			if num > 1 {
+				descrambleWebp(imgPath, num)
 			}
-			// 格式转换
+		}
 			if targetExt != "webp" {
 				jpgPath := filepath.Join(chapterDir, fmt.Sprintf("%03d.%s", j+1, targetExt))
 				if err := convertWebpTo(imgPath, jpgPath, targetExt); err == nil {
@@ -613,6 +609,10 @@ func (r *Router) processDownload(downloadID int, comicID string, format string) 
 func maxInt(a, b int) int { if a > b { return a }; return b }
 
 func descrambleWebp(path string, num int) error {
+	if num <= 1 {
+		return nil
+	}
+
 	srcImg, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -623,38 +623,33 @@ func descrambleWebp(path string, num int) error {
 	}
 
 	bounds := img.Bounds()
-	width := bounds.Dx()
-	height := bounds.Dy()
-	rem := height % num
-	stripH := height / num
+	w := bounds.Dx()
+	h := bounds.Dy()
+	over := h % num
+	move := h / num // 整数除法等同于 math.floor
 
-	// 从上到下分成 num 块
-	blocks := make([]struct{ y0, y1 int }, num)
-	totalH := 0
+	// 官方 jmcomic 库的 decode_and_save 算法
+	// img_decode.paste(img_src.crop(y_src), (y_dst))
+	result := image.NewRGBA(image.Rect(0, 0, w, h))
 	for i := 0; i < num; i++ {
-		h := stripH * (i + 1)
-		if i == num-1 {
-			h += rem
-		}
-		blocks[i] = struct{ y0, y1 int }{totalH, h}
-		totalH = h
-	}
+		ySrc := h - (move * (i + 1)) - over
+		yDst := move * i
+		thisMove := move
 
-	// 倒序重组
-	result := image.NewRGBA(bounds)
-	curY := 0
-	for i := len(blocks) - 1; i >= 0; i-- {
-		b := blocks[i]
-		ch := b.y1 - b.y0
-		for y := 0; y < ch; y++ {
-			for x := 0; x < width; x++ {
-				result.Set(x, curY+y, img.At(x, b.y0+y))
+		if i == 0 {
+			thisMove += over
+		} else {
+			yDst += over
+		}
+
+		// 从源图复制一行到目标
+		for y := 0; y < thisMove; y++ {
+			for x := 0; x < w; x++ {
+				result.Set(x, yDst+y, img.At(x, ySrc+y))
 			}
 		}
-		curY += ch
 	}
 
-	// 保存为 PNG（无损），后续统一转格式
 	out, err := os.Create(path)
 	if err != nil {
 		return err
