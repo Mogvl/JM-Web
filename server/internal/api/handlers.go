@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"fmt"
 	"image"
 	"image/jpeg"
@@ -612,18 +613,14 @@ func (r *Router) processDownload(downloadID int, comicID string, format string) 
 func maxInt(a, b int) int { if a > b { return a }; return b }
 
 func descrambleWebp(path string, num int) error {
-	f, err := os.Open(path)
+	srcImg, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-
-	img, _, err := image.Decode(f)
+	img, _, err := image.Decode(bytes.NewReader(srcImg))
 	if err != nil {
-		f.Close()
 		return err
 	}
-	f.Close()
 
 	bounds := img.Bounds()
 	width := bounds.Dx()
@@ -657,13 +654,13 @@ func descrambleWebp(path string, num int) error {
 		curY += ch
 	}
 
+	// 保存为 PNG（无损），后续统一转格式
 	out, err := os.Create(path)
 	if err != nil {
 		return err
 	}
 	defer out.Close()
-
-	return jpeg.Encode(out, result, &jpeg.Options{Quality: 95})
+	return png.Encode(out, result)
 }
 
 func convertWebpTo(src, dst, format string) error {
