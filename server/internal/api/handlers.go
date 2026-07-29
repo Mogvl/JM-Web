@@ -70,7 +70,7 @@ func (r *Router) GetChapters(c *gin.Context) {
 func (r *Router) GetChapterImages(c *gin.Context) {
 	chapterID := c.Param("id")
 
-	images, err := r.client.GetChapterImages(chapterID)
+	images, _, err := r.client.GetChapterImages(chapterID)
 	if err != nil {
 		log.Errorf("Get images failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get images"})
@@ -528,20 +528,21 @@ func (r *Router) processDownload(downloadID int, comicID string, format string) 
 		return
 	}
 
-	// 先获取所有章节的图片列表，计算总数
 	type chapterImages struct {
-		chapter crawler.ChapterItem
-		images  []string
+		chapter     crawler.ChapterItem
+		images      []string
+		scrambleID  int
 	}
 	allChapters := make([]chapterImages, 0, len(chapters))
 	totalImgs := 0
 	for _, ch := range chapters {
-		imgs, err := r.client.GetChapterImages(ch.ID)
+		imgs, _, err := r.client.GetChapterImages(ch.ID)
 		if err != nil {
 			log.Warnf("Get chapter %s images failed: %v", ch.ID, err)
 			continue
 		}
-		allChapters = append(allChapters, chapterImages{chapter: ch, images: imgs})
+		si := r.client.GetScrambleID(ch.ID, comicID)
+		allChapters = append(allChapters, chapterImages{chapter: ch, images: imgs, scrambleID: si})
 		totalImgs += len(imgs)
 	}
 	r.db.SetDownloadTotal(downloadID, totalImgs)
@@ -580,7 +581,15 @@ func (r *Router) processDownload(downloadID int, comicID string, format string) 
 				log.Warnf("Download image %s failed: %v", imgURL, err)
 				continue
 			}
-			// 格式转换（原版用 PIL Image.save("path", "JPEG")）
+			// 图片重排（原版 SegmentationPictureToDisk）
+			if ci.scrambleID > 0 {
+				picName := filepath.Base(imgURL)
+				num := crawler.GetSegmentationNum(ci.chapter.ID, ci.scrambleID, picName)
+				if num > 1 {
+					descrambleWebp(imgPath, num)
+				}
+			}
+			// 格式转换
 			if targetExt != "webp" {
 				jpgPath := filepath.Join(chapterDir, fmt.Sprintf("%03d.%s", j+1, targetExt))
 				if err := convertWebpTo(imgPath, jpgPath, targetExt); err == nil {
@@ -598,6 +607,61 @@ func (r *Router) processDownload(downloadID int, comicID string, format string) 
 }
 
 func maxInt(a, b int) int { if a > b { return a }; return b }
+
+func descrambleWebp(path string, num int) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	img, _, err := image.Decode(f)
+	if err != nil {
+		f.Close()
+		return err
+	}
+	f.Close()
+
+	bounds := img.Bounds()
+	width := bounds.Dx()
+	height := bounds.Dy()
+	rem := height % num
+	stripH := height / num
+
+	// 从上到下分成 num 块
+	blocks := make([]struct{ y0, y1 int }, num)
+	totalH := 0
+	for i := 0; i < num; i++ {
+		h := stripH * (i + 1)
+		if i == num-1 {
+			h += rem
+		}
+		blocks[i] = struct{ y0, y1 int }{totalH, h}
+		totalH = h
+	}
+
+	// 倒序重组
+	result := image.NewRGBA(bounds)
+	curY := 0
+	for i := len(blocks) - 1; i >= 0; i-- {
+		b := blocks[i]
+		ch := b.y1 - b.y0
+		for y := 0; y < ch; y++ {
+			for x := 0; x < width; x++ {
+				result.Set(x, curY+y, img.At(x, b.y0+y))
+			}
+		}
+		curY += ch
+	}
+
+	out, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	return jpeg.Encode(out, result, &jpeg.Options{Quality: 95})
+}
 
 func convertWebpTo(src, dst, format string) error {
 	f, err := os.Open(src)

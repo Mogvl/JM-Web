@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -319,10 +320,10 @@ func (c *Client) GetChapters(comicID string) ([]ChapterItem, error) {
 	return detail.Chapters, nil
 }
 
-func (c *Client) GetChapterImages(chapterID string) ([]string, error) {
+func (c *Client) GetChapterImages(chapterID string) ([]string, int, error) {
 	body, err := c.get("/chapter", map[string]string{"id": chapterID, "comicName": "", "skip": ""})
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	var resp struct {
@@ -330,22 +331,59 @@ func (c *Client) GetChapterImages(chapterID string) ([]string, error) {
 		Data json.RawMessage `json:"data"`
 	}
 	if json.Unmarshal(body, &resp) != nil || resp.Code != 200 {
-		return nil, fmt.Errorf("chapter failed")
+		return nil, 0, fmt.Errorf("chapter failed")
 	}
 
-	// 尝试多种格式
 	var arr []string
 	if json.Unmarshal(resp.Data, &arr) == nil && len(arr) > 0 {
-		return buildImageURLs(chapterID, arr), nil
+		return buildImageURLs(chapterID, arr), 0, nil
 	}
 	var obj struct {
 		Images []string `json:"images"`
 	}
 	if json.Unmarshal(resp.Data, &obj) == nil && len(obj.Images) > 0 {
-		return buildImageURLs(chapterID, obj.Images), nil
+		return buildImageURLs(chapterID, obj.Images), 0, nil
 	}
 
-	return nil, fmt.Errorf("no images found")
+	return nil, 0, fmt.Errorf("no images found")
+}
+
+// 获取 scramble_id（用于图片重组）
+func (c *Client) GetScrambleID(chapterID string, bookID string) int {
+	body, err := c.get("/chapter_view_template", map[string]string{
+		"id": chapterID, "mode": "vertical", "page": "0", "app_img_shunt": "NaN",
+	})
+	if err != nil {
+		return 220980 // 默认值
+	}
+	// 从 HTML 中解析 var scramble_id = \d+;
+	re := regexp.MustCompile(`scramble_id\s*=\s*(\d+)`)
+	m := re.FindSubmatch(body)
+	if len(m) > 1 {
+		id, _ := strconv.Atoi(string(m[1]))
+		return id
+	}
+	return 220980
+}
+
+// 计算图片分割块数（参照原版 GetSegmentationNum）
+func GetSegmentationNum(epsID string, scrambleID int, picName string) int {
+	eid, _ := strconv.Atoi(epsID)
+	if eid < scrambleID {
+		return 0
+	}
+	if eid < 268850 {
+		return 10
+	}
+	str := epsID + picName
+	hash := md5.Sum([]byte(str))
+	last := int(hash[len(hash)-1])
+	if eid > 421926 {
+		num := last % 8
+		return num*2 + 2
+	}
+	num := last % 10
+	return num*2 + 2
 }
 
 // buildImageURLs 把文件名转成完整图片URL
