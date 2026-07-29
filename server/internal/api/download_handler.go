@@ -9,6 +9,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+func min(a, b int) int { if a < b { return a }; return b }
+
 func (r *Router) processDownload(downloadID int, comicID string, format string) {
 	r.db.UpdateDownload(downloadID, "downloading", 0, 0)
 
@@ -48,8 +50,20 @@ func (r *Router) processDownload(downloadID int, comicID string, format string) 
 		Dir     string `json:"dir"`
 		Error   string `json:"error"`
 	}
-	if err := json.Unmarshal(out, &result); err != nil {
-		log.Errorf("Parse python output failed: %v, output: %s", err, string(out))
+	// 从输出中提取最后一行 JSON
+	outputStr := string(out)
+	// 找到第一个 { 开始的 JSON
+	jsonStart := strings.LastIndex(outputStr, "{")
+	jsonEnd := strings.LastIndex(outputStr, "}")
+	if jsonStart >= 0 && jsonEnd > jsonStart {
+		jsonStr := outputStr[jsonStart : jsonEnd+1]
+		if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
+			log.Errorf("Parse python output failed: %v, json: %s", err, jsonStr)
+			r.db.UpdateDownload(downloadID, "failed", 0, 0)
+			return
+		}
+	} else {
+		log.Errorf("No JSON in python output: %s", outputStr[:min(200, len(outputStr))])
 		r.db.UpdateDownload(downloadID, "failed", 0, 0)
 		return
 	}

@@ -3,11 +3,15 @@
 JMComic 图片下载脚本
 使用官方 jmcomic 库处理图片重组和格式转换
 """
-import sys, os, json
+import sys, os, json, logging
+
+# 禁止 jmcomic 库的日志输出
+logging.disable(logging.CRITICAL)
+os.environ['JM_LOG_LEVEL'] = 'ERROR'
 
 def download(jm_id, output_dir, image_format='jpg'):
     """使用 jmcomic 库下载并正确处理图片"""
-    from jmcomic import JmOption, download_album, JmModuleConfig
+    from jmcomic import JmOption, download_album
 
     # 配置下载选项
     option = JmOption.default()
@@ -34,9 +38,16 @@ if __name__ == '__main__':
     output_dir = sys.argv[2]
     image_format = sys.argv[3] if len(sys.argv) > 3 else 'jpg'
 
+    # 重定向 stderr，只输出 JSON 到 stdout
+    old_stderr = sys.stderr
+    sys.stderr = open(os.devnull, 'w')
+
     try:
         count = download(jm_id, output_dir, image_format)
-        print(json.dumps({'success': True, 'count': count, 'dir': output_dir}))
+        sys.stderr = old_stderr
+        # 只输出纯 JSON
+        sys.stdout.write(json.dumps({'success': True, 'count': count, 'dir': output_dir}))
     except Exception as e:
-        print(json.dumps({'success': False, 'error': str(e)}))
+        sys.stderr = old_stderr
+        sys.stdout.write(json.dumps({'success': False, 'error': str(e)}))
         sys.exit(1)
