@@ -6,3 +6,5 @@ data
 .git
 downloads/
 server/main.exe
+server/*.webp
+server/[[]*
