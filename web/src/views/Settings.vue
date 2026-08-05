@@ -45,7 +45,11 @@
               <el-input-number v-model="proxyPort" :min="1" :max="65535" />
             </el-form-item>
             <el-form-item label="DoH DNS">
-              <el-input v-model="dohUrl" placeholder="https://dns.alidns.com/dns-query" />
+              <el-select v-model="dohUrl" filterable allow-create style="width:300px" placeholder="选择或输入 DoH 地址">
+                <el-option v-for="d in dohOptions" :key="d" :label="d" :value="d" />
+              </el-select>
+              <el-button size="small" style="margin-left:8px" :loading="testingDoh" @click="testDoh">测试</el-button>
+              <span v-if="dohResult !== null" class="doh-result" :class="dohResult ? 'ok' : 'fail'">{{ dohResult ? '连接正常' : '连接失败' }}</span>
             </el-form-item>
           </el-form>
         </el-card>
@@ -115,8 +119,9 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { getDohConfig, checkDoh } from '../api'
 
 const activeTab = ref('general')
 const lang = ref(localStorage.getItem('lang') || 'zh-CN')
@@ -127,6 +132,9 @@ const proxyType = ref(localStorage.getItem('proxyType') || 'none')
 const proxyHost = ref(localStorage.getItem('proxyHost') || '')
 const proxyPort = ref(parseInt(localStorage.getItem('proxyPort') || '1080'))
 const dohUrl = ref(localStorage.getItem('dohUrl') || '')
+const dohOptions = ref([])
+const testingDoh = ref(false)
+const dohResult = ref(null)
 const waifu2xModel = ref(localStorage.getItem('waifu2xModel') || 'cunet')
 const outputFormat = ref(localStorage.getItem('outputFormat') || 'png')
 const useGpu = ref(localStorage.getItem('useGpu') === 'true')
@@ -135,6 +143,24 @@ const maxDownloads = ref(parseInt(localStorage.getItem('maxDownloads') || '3'))
 const imageQuality = ref(localStorage.getItem('imageQuality') || 'original')
 const cacheSize = ref(localStorage.getItem('cacheSize') || '512')
 const autoCache = ref(localStorage.getItem('autoCache') !== 'false')
+
+const testDoh = async () => {
+  if (!dohUrl.value) return
+  testingDoh.value = true
+  dohResult.value = null
+  try {
+    const data = await checkDoh(dohUrl.value)
+    dohResult.value = !!data.reachable
+  } catch (e) { dohResult.value = false }
+  finally { testingDoh.value = false }
+}
+
+onMounted(async () => {
+  try {
+    const data = await getDohConfig()
+    dohOptions.value = data.dns || []
+  } catch (e) {}
+})
 
 const save = () => {
   const items = { lang, theme, apiUrl, timeout, proxyType, proxyHost, proxyPort, dohUrl, waifu2xModel, outputFormat, useGpu, downloadDir, maxDownloads, imageQuality, cacheSize, autoCache }
@@ -152,4 +178,7 @@ const reset = () => {
 .settings h2 { margin-bottom: 20px; }
 .card { max-width: 700px; }
 .actions { margin-top: 30px; display: flex; gap: 12px; }
+.doh-result { margin-left: 8px; font-size: 13px; }
+.doh-result.ok { color: #67C23A; }
+.doh-result.fail { color: #F56C6C; }
 </style>

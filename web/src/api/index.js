@@ -64,3 +64,7 @@ export const getUserInfo = () => api.get('/user/info').then(r => r.data)
 
 // 帮助
 export const getHelp = () => api.get('/help').then(r => r.data)
+
+// DoH
+export const getDohConfig = () => api.get('/doh/config').then(r => r.data)
+export const checkDoh = (url) => api.post('/doh/check', { url }).then(r => r.data)
