@@ -8,9 +8,10 @@
     <div v-if="loading" class="loading-state"><el-icon class="is-loading"><Loading /></el-icon> 加载中...</div>
     <div v-else-if="items.length === 0" class="empty-state">暂无数据</div>
     <div v-else class="comic-grid">
-      <div v-for="comic in items" :key="comic.id" class="comic-card" @click="$router.push(`/comic/${comic.id}`)">
+      <div v-for="comic in items" :key="comic.id" class="comic-card" @click="openComic(comic)">
         <img :src="comic.cover_url" :alt="comic.title" loading="lazy" />
         <div class="card-title">{{ comic.title }}</div>
+        <div v-if="comic.author" class="card-author">{{ comic.author }}</div>
       </div>
     </div>
 
@@ -24,12 +25,18 @@
 import { ref, onMounted } from 'vue'
 import { getLatest, getIndex } from '../api'
 import { Loading } from '@element-plus/icons-vue'
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 const items = ref([])
 const loading = ref(false)
 const activeTab = ref('latest')
 const page = ref(1)
 const promoteMap = ref({})
+
+const openComic = (comic) => {
+  router.push(`/comic/${comic.id}`)
+}
 
 const loadLatest = async () => {
   loading.value = true
