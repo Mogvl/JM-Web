@@ -227,6 +227,46 @@ func (r *Router) RemoveFavorite(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Removed"})
 }
 
+func (r *Router) AddFavoriteFolder(c *gin.Context) {
+	var req struct {
+		Name string `json:"name" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "name required"})
+		return
+	}
+	if err := r.client.AddFavoriteFolder(req.Name); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Created"})
+}
+
+func (r *Router) DelFavoriteFolder(c *gin.Context) {
+	fid := c.Param("fid")
+	if err := r.client.DelFavoriteFolder(fid); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Deleted"})
+}
+
+func (r *Router) MoveFavorite(c *gin.Context) {
+	var req struct {
+		ComicID  string `json:"comic_id" binding:"required"`
+		FolderID string `json:"folder_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "comic_id required"})
+		return
+	}
+	if err := r.client.MoveFavoriteToFolder(req.ComicID, req.FolderID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Moved"})
+}
+
 // ==================== 历史 ====================
 
 func (r *Router) GetHistory(c *gin.Context) {

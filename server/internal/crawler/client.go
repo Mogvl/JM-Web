@@ -835,6 +835,30 @@ func (c *Client) GetOnlineFavoritesWithFolders(page int) (*SearchResult, []Favor
 	return result, nil, err
 }
 
+// AddFavoriteFolder 新建收藏文件夹
+func (c *Client) AddFavoriteFolder(name string) error {
+	_, err := c.doPostForm("/favorite_folder", url.Values{
+		"type": {"add"}, "folder_name": {name},
+	})
+	return err
+}
+
+// DelFavoriteFolder 删除收藏文件夹
+func (c *Client) DelFavoriteFolder(fid string) error {
+	_, err := c.doPostForm("/favorite_folder", url.Values{
+		"type": {"del"}, "folder_id": {fid},
+	})
+	return err
+}
+
+// MoveFavoriteToFolder 把收藏移动到指定文件夹（fid 为空表示全部）
+func (c *Client) MoveFavoriteToFolder(comicID, fid string) error {
+	_, err := c.doPostForm("/favorite_folder", url.Values{
+		"type": {"move"}, "aid": {comicID}, "folder_id": {fid},
+	})
+	return err
+}
+
 // ==================== Helper Functions ====================
 
 func parseAuthor(raw json.RawMessage) string {

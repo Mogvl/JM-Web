@@ -76,6 +76,9 @@ func (r *Router) setupRoutes() {
 		api.GET("/favorites", r.GetFavorites)
 		api.POST("/favorites", r.AddFavorite)
 		api.DELETE("/favorites/:id", r.RemoveFavorite)
+		api.POST("/favorite/folder", r.AddFavoriteFolder)
+		api.DELETE("/favorite/folder/:fid", r.DelFavoriteFolder)
+		api.POST("/favorite/move", r.MoveFavorite)
 
 		// 历史
 		api.GET("/history", r.GetHistory)

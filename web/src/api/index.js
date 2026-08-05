@@ -37,6 +37,9 @@ export const getAllComments = (page = 1) => api.get('/comments/all', { params: {
 export const getFavorites = () => api.get('/favorites').then(r => r.data)
 export const addFavorite = (comic_id) => api.post('/favorites', { comic_id })
 export const removeFavorite = (id) => api.delete(`/favorites/${id}`)
+export const addFavoriteFolder = (name) => api.post('/favorite/folder', { name })
+export const deleteFavoriteFolder = (fid) => api.delete(`/favorite/folder/${fid}`)
+export const moveFavorite = (comic_id, folder_id) => api.post('/favorite/move', { comic_id, folder_id })
 
 // 历史
 export const getHistory = () => api.get('/history').then(r => r.data)
