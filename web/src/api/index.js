@@ -32,6 +32,8 @@ export const getComments = (comicId, page = 1) => api.get(`/comic/${comicId}/com
 export const getSubComments = (commentId, page = 1) => api.get(`/comment/${commentId}/sub`, { params: { page } }).then(r => r.data)
 export const getMyComments = (page = 1) => api.get('/comments/mine', { params: { page } }).then(r => r.data)
 export const getAllComments = (page = 1) => api.get('/comments/all', { params: { page } }).then(r => r.data)
+export const postComment = (comicId, content) => api.post(`/comic/${comicId}/comment`, { content })
+export const replyComment = (comicId, commentId, content) => api.post(`/comment/${commentId}/reply`, { comic_id: comicId, content })
 
 // 收藏
 export const getFavorites = () => api.get('/favorites').then(r => r.data)

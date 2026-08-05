@@ -477,6 +477,41 @@ func (r *Router) GetAllComments(c *gin.Context) {
 	c.JSON(http.StatusOK, comments)
 }
 
+func (r *Router) PostComment(c *gin.Context) {
+	comicID := c.Param("id")
+	var req struct {
+		Content string `json:"content" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "content required"})
+		return
+	}
+	if err := r.client.SendComment(comicID, req.Content, ""); err != nil {
+		log.Errorf("Post comment failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Commented"})
+}
+
+func (r *Router) ReplyComment(c *gin.Context) {
+	commentID := c.Param("id")
+	var req struct {
+		ComicID string `json:"comic_id" binding:"required"`
+		Content string `json:"content" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid params"})
+		return
+	}
+	if err := r.client.SendComment(req.ComicID, req.Content, commentID); err != nil {
+		log.Errorf("Reply comment failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Replied"})
+}
+
 // ==================== DoH ====================
 
 func (r *Router) GetDohConfig(c *gin.Context) {

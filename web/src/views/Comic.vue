@@ -74,6 +74,14 @@
         <h2 class="section-title">评论</h2>
         <span class="count">{{ comments.length }} 条</span>
       </div>
+
+      <div v-if="canComment" class="comment-box">
+        <el-input v-model="newComment" type="textarea" :rows="3" placeholder="发表你的评论..." resize="none" />
+        <div class="comment-actions">
+          <el-button type="primary" size="small" :loading="posting" @click="submitComment">发表评论</el-button>
+        </div>
+      </div>
+
       <div v-if="comments.length === 0" class="empty-state">暂无评论</div>
       <div v-else class="comment-list">
         <div v-for="comment in comments" :key="comment.id" class="comment-item">
@@ -82,8 +90,29 @@
             <div class="comment-head">
               <span class="comment-author">{{ comment.author }}</span>
               <span class="comment-time">{{ comment.create_time }}</span>
+              <span class="comment-like" v-if="comment.like_count"><el-icon><Pointer /></el-icon>{{ comment.like_count }}</span>
             </div>
             <div class="comment-text">{{ comment.content }}</div>
+            <div class="comment-foot">
+              <span class="reply-link" @click="toggleReply(comment)">{{ replyingTo === comment.id ? '取消回复' : '回复' }}</span>
+              <span class="sub-link" v-if="comment.reply_count" @click="toggleSub(comment)">{{ subOpen === comment.id ? '收起' : `查看 ${comment.reply_count} 条回复` }}</span>
+            </div>
+            <div v-if="replyingTo === comment.id" class="reply-box">
+              <el-input v-model="replyText" size="small" placeholder="回复..." @keyup.enter="submitReply(comment)" />
+              <el-button type="primary" size="small" :loading="posting" @click="submitReply(comment)">发送</el-button>
+            </div>
+            <div v-if="subOpen === comment.id" class="sub-list">
+              <div v-for="sub in subComments(comment.id)" :key="sub.id" class="sub-item">
+                <el-avatar :size="26" :src="sub.avatar">{{ (sub.author || '?').charAt(0) }}</el-avatar>
+                <div class="sub-body">
+                  <span class="sub-author">{{ sub.author }}</span>
+                  <span class="sub-text">{{ sub.content }}</span>
+                </div>
+              </div>
+              <div v-if="!subLoaded(comment.id) && comment.reply_count" class="sub-load">
+                <el-button size="small" text @click="loadSubs(comment)">加载回复</el-button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -93,10 +122,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getComic, getChapters, getComments, getFavorites, addFavorite, removeFavorite, createDownload } from '../api'
-import { Star, Download, ChatDotRound } from '@element-plus/icons-vue'
+import { getComic, getChapters, getComments, getFavorites, addFavorite, removeFavorite, createDownload, getSubComments, postComment, replyComment } from '../api'
+import { Star, Download, ChatDotRound, Pointer } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import DownloadEpsDialog from '../components/DownloadEpsDialog.vue'
 import BackNav from '../components/BackNav.vue'
@@ -108,6 +137,14 @@ const chapters = ref([])
 const comments = ref([])
 const isFav = ref(false)
 const showDownloadDialog = ref(false)
+const newComment = ref('')
+const replyText = ref('')
+const posting = ref(false)
+const replyingTo = ref('')
+const subOpen = ref('')
+const subMap = ref({})
+
+const canComment = computed(() => localStorage.getItem('token') && localStorage.getItem('token') !== 'guest')
 
 onMounted(async () => {
   const id = route.params.id
@@ -132,6 +169,44 @@ const startDownload = () => { showDownloadDialog.value = true }
 const searchTag = (tag) => router.push({ path: '/search', query: { q: tag } })
 const searchAuthor = (author) => { if (author) router.push({ path: '/search', query: { q: author } }) }
 const scrollToComments = () => { document.getElementById('comments')?.scrollIntoView({ behavior: 'smooth' }) }
+
+// ===== 评论交互 =====
+const submitComment = async () => {
+  if (!newComment.value.trim()) return
+  posting.value = true
+  try {
+    await postComment(route.params.id, newComment.value.trim())
+    ElMessage.success('评论已发表')
+    newComment.value = ''
+    comments.value = await getComments(route.params.id) || []
+  } catch (e) { ElMessage.error('发表失败') }
+  finally { posting.value = false }
+}
+
+const toggleReply = (comment) => { replyingTo.value = replyingTo.value === comment.id ? '' : comment.id; replyText.value = '' }
+const submitReply = async (comment) => {
+  if (!replyText.value.trim()) return
+  posting.value = true
+  try {
+    await replyComment(route.params.id, comment.id, replyText.value.trim())
+    ElMessage.success('回复成功')
+    replyText.value = ''
+    replyingTo.value = ''
+  } catch (e) { ElMessage.error('回复失败') }
+  finally { posting.value = false }
+}
+
+const toggleSub = (comment) => {
+  if (subOpen.value === comment.id) { subOpen.value = ''; return }
+  subOpen.value = comment.id
+  if (!subMap.value[comment.id]) loadSubs(comment)
+}
+const subComments = (id) => subMap.value[id] || []
+const subLoaded = (id) => !!subMap.value[id]
+const loadSubs = async (comment) => {
+  try { subMap.value[comment.id] = await getSubComments(comment.id) || [] }
+  catch (e) { subMap.value[comment.id] = [] }
+}
 </script>
 
 <style scoped>
@@ -168,7 +243,19 @@ const scrollToComments = () => { document.getElementById('comments')?.scrollInto
 .comment-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
 .comment-author { font-weight: 600; color: var(--text-primary); font-size: 13px; }
 .comment-time { color: var(--text-muted); font-size: 11px; }
+.comment-like { display: inline-flex; align-items: center; gap: 3px; color: var(--text-muted); font-size: 12px; }
 .comment-text { font-size: 13px; color: var(--text-secondary); line-height: 1.6; word-break: break-word; }
+.comment-foot { display: flex; gap: 16px; margin-top: 8px; }
+.reply-link, .sub-link { font-size: 12px; color: var(--accent); cursor: pointer; }
+.comment-box { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px; margin-bottom: 16px; }
+.comment-actions { margin-top: 8px; text-align: right; }
+.reply-box { display: flex; gap: 8px; margin-top: 8px; }
+.sub-list { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border); display: flex; flex-direction: column; gap: 8px; }
+.sub-item { display: flex; gap: 8px; align-items: flex-start; }
+.sub-body { display: flex; flex-direction: column; font-size: 13px; min-width: 0; }
+.sub-author { color: var(--accent); font-weight: 500; font-size: 12px; }
+.sub-text { color: var(--text-secondary); line-height: 1.5; word-break: break-word; }
+.sub-load { text-align: center; }
 
 @media (max-width: 768px) {
   .detail-header { flex-direction: column; gap: 16px; align-items: center; }

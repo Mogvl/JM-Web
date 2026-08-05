@@ -561,8 +561,8 @@ func (c *Client) GetComments(comicID string, page int) ([]CommentItem, error) {
 
 // GetMyComments 我的评论（需要登录 auth）
 func (c *Client) GetMyComments(page int) ([]CommentItem, error) {
-	body, err := c.get("/api/my_comment", map[string]string{
-		"page": fmt.Sprintf("%d", page), "limit": "20",
+	body, err := c.get("/forum", map[string]string{
+		"mode": "undefined", "page": fmt.Sprintf("%d", page),
 	})
 	if err != nil {
 		return nil, err
@@ -581,10 +581,23 @@ func (c *Client) GetMyComments(page int) ([]CommentItem, error) {
 	return toCommentItems(comments), nil
 }
 
+// SendComment 发表评论（replyToCommentId 非空时为回复）
+func (c *Client) SendComment(comicID, content, replyToCommentID string) error {
+	values := url.Values{
+		"comment": {content},
+		"aid":     {comicID},
+	}
+	if replyToCommentID != "" {
+		values.Set("comment_id", replyToCommentID)
+	}
+	_, err := c.doPostForm("/comment", values)
+	return err
+}
+
 // GetAllComments 全部评论
 func (c *Client) GetAllComments(page int) ([]CommentItem, error) {
-	body, err := c.get("/api/all_comments", map[string]string{
-		"page": fmt.Sprintf("%d", page), "limit": "20",
+	body, err := c.get("/forum", map[string]string{
+		"mode": "undefined", "page": fmt.Sprintf("%d", page),
 	})
 	if err != nil {
 		return nil, err

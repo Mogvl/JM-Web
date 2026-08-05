@@ -71,6 +71,8 @@ func (r *Router) setupRoutes() {
 		api.GET("/comment/:id/sub", r.GetSubComments)
 		api.GET("/comments/mine", r.GetMyComments)
 		api.GET("/comments/all", r.GetAllComments)
+		api.POST("/comic/:id/comment", r.PostComment)
+		api.POST("/comment/:id/reply", r.ReplyComment)
 
 		// 收藏
 		api.GET("/favorites", r.GetFavorites)
