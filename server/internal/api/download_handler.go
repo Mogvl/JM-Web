@@ -12,7 +12,7 @@ import (
 
 func min(a, b int) int { if a < b { return a }; return b }
 
-func (r *Router) processDownload(downloadID int, comicID string, format string) {
+func (r *Router) processDownload(downloadID int, comicID string, format string, chapters []string) {
 	r.db.UpdateDownload(downloadID, "downloading", 0, 0)
 
 	comic, err := r.client.GetComicDetail(comicID)
@@ -31,15 +31,21 @@ func (r *Router) processDownload(downloadID int, comicID string, format string) 
 	if targetFmt == "" {
 		targetFmt = "jpg"
 	}
-	if targetFmt == "jpg" {
-		targetFmt = "jpg"
+
+	// 未指定章节则默认全部章节
+	selected := chapters
+	if len(selected) == 0 {
+		for _, ch := range comic.Chapters {
+			selected = append(selected, ch.ID)
+		}
 	}
 
 	// 调用官方 Python jmcomic 库下载（自动处理图片重组/格式转换）
 	scriptPath, _ := filepath.Abs("download_jm.py")
 	absDir, _ := filepath.Abs(comicDir)
 	os.MkdirAll(absDir, 0755)
-	cmd := exec.Command("python", scriptPath, comicID, absDir, targetFmt)
+	args := append([]string{scriptPath, comicID, absDir, targetFmt}, selected...)
+	cmd := exec.Command("python", args...)
 	cmd.Dir = absDir // 设置工作目录为下载目录
 	out, err := cmd.CombinedOutput()
 	if err != nil {

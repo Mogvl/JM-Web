@@ -9,7 +9,7 @@ import sys, os, json, logging
 logging.disable(logging.CRITICAL)
 os.environ['JM_LOG_LEVEL'] = 'ERROR'
 
-def download(jm_id, output_dir, image_format='jpg'):
+def download(jm_id, output_dir, image_format='jpg', chapter_ids=None):
     """使用 jmcomic 库下载并正确处理图片"""
     from jmcomic import JmOption, download_album
 
@@ -24,7 +24,7 @@ def download(jm_id, output_dir, image_format='jpg'):
     option.image_format = 'webp'
 
     # 下载（自动处理 descramble）
-    download_album(jm_id, option)
+    download_album(jm_id, option, fetch_episode=chapter_ids)
 
     # 如果需要 jpg/png，下载后转换
     if image_format != 'webp':
@@ -61,13 +61,14 @@ if __name__ == '__main__':
     jm_id = sys.argv[1]
     output_dir = sys.argv[2]
     image_format = sys.argv[3] if len(sys.argv) > 3 else 'jpg'
+    chapter_ids = sys.argv[4:] if len(sys.argv) > 4 else None
 
     # 重定向 stderr，只输出 JSON 到 stdout
     old_stderr = sys.stderr
     sys.stderr = open(os.devnull, 'w')
 
     try:
-        count = download(jm_id, output_dir, image_format)
+        count = download(jm_id, output_dir, image_format, chapter_ids)
         sys.stderr = old_stderr
         # 只输出纯 JSON
         sys.stdout.write(json.dumps({'success': True, 'count': count, 'dir': output_dir}))

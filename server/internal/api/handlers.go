@@ -279,11 +279,12 @@ func (r *Router) ClearHistory(c *gin.Context) {
 
 func (r *Router) CreateDownload(c *gin.Context) {
 	var req struct {
-		ComicID  string `json:"comic_id" binding:"required"`
-		Title    string `json:"title"`
-		Author   string `json:"author"`
-		Cover    string `json:"cover"`
-		Format   string `json:"format"`
+		ComicID  string   `json:"comic_id" binding:"required"`
+		Title    string   `json:"title"`
+		Author   string   `json:"author"`
+		Cover    string   `json:"cover"`
+		Format   string   `json:"format"`
+		Chapters []string `json:"chapters"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "comic_id required"})
@@ -307,7 +308,7 @@ func (r *Router) CreateDownload(c *gin.Context) {
 	if req.Format == "" {
 		req.Format = "jpg"
 	}
-	go r.processDownload(dl.ID, req.ComicID, req.Format)
+	go r.processDownload(dl.ID, req.ComicID, req.Format, req.Chapters)
 
 	c.JSON(http.StatusOK, dl)
 }
