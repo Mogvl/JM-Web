@@ -3,6 +3,7 @@ package api
 import (
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/Mogvl/JM-Web/server/internal/model"
@@ -348,9 +349,39 @@ func (r *Router) CreateDownload(c *gin.Context) {
 	if req.Format == "" {
 		req.Format = "jpg"
 	}
+	r.db.SetDownloadFormat(dl.ID, req.Format)
 	go r.processDownload(dl.ID, req.ComicID, req.Format, req.Chapters)
 
 	c.JSON(http.StatusOK, dl)
+}
+
+// CancelDownload 停止下载（把任务标记为失败以便中断）
+func (r *Router) CancelDownload(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("id"))
+	if err := r.db.UpdateDownload(id, "failed", 0, 0); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Cancelled"})
+}
+
+// DeleteDownloadAndFile 删除下载记录及已下载文件
+func (r *Router) DeleteDownloadAndFile(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("id"))
+	dl, err := r.db.GetDownload(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed"})
+		return
+	}
+	// 删除下载目录
+	if dl.FilePath != "" {
+		os.RemoveAll(dl.FilePath)
+	}
+	if err := r.db.DeleteDownload(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Deleted"})
 }
 
 func (r *Router) GetDownloads(c *gin.Context) {

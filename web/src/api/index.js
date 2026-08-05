@@ -53,6 +53,8 @@ export const createDownload = (comic_id, info = {}) => api.post('/download', { c
 export const getDownloads = () => api.get('/downloads').then(r => r.data)
 export const deleteDownload = (id) => api.delete(`/download/${id}`)
 export const clearDownloads = () => api.delete('/downloads')
+export const cancelDownload = (id) => api.post(`/download/${id}/cancel`)
+export const deleteDownloadFile = (id) => api.delete(`/download/${id}/file`)
 
 // 用户
 export const login = (username, password) => api.post('/login', { username, password }).then(r => r.data)

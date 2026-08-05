@@ -190,3 +190,7 @@ func (db *DB) SetDownloadPath(id int, path string) error {
 func (db *DB) SetDownloadTotal(id int, total int) error {
 	return db.Model(&model.Download{}).Where("id = ?", id).Update("total_pages", total).Error
 }
+
+func (db *DB) SetDownloadFormat(id int, format string) error {
+	return db.Model(&model.Download{}).Where("id = ?", id).Update("format", format).Error
+}

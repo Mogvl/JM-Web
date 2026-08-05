@@ -48,6 +48,7 @@ type Download struct {
 	TotalPages  int        `json:"total_pages"`
 	Downloaded  int        `json:"downloaded"`
 	FilePath    string     `json:"file_path"`
+	Format      string     `json:"format" gorm:"default:jpg"`
 	Comic       Comic      `json:"comic" gorm:"foreignKey:ComicID"`
 	CreatedAt   time.Time  `json:"created_at"`
 	CompletedAt *time.Time `json:"completed_at"`

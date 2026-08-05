@@ -92,6 +92,8 @@ func (r *Router) setupRoutes() {
 		api.GET("/downloads", r.GetDownloads)
 		api.DELETE("/download/:id", r.DeleteDownload)
 		api.DELETE("/downloads", r.ClearDownloads)
+		api.POST("/download/:id/cancel", r.CancelDownload)
+		api.DELETE("/download/:id/file", r.DeleteDownloadAndFile)
 
 		// 用户
 		api.POST("/login", r.Login)

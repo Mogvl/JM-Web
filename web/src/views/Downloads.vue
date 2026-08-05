@@ -39,10 +39,11 @@
           <div class="col-status"><el-tag :type="statusType(dl.status)" size="small" effect="light">{{ statusText(dl.status) }}</el-tag></div>
           <div class="col-time">{{ formatDate(dl.created_at) }}</div>
           <div class="col-actions">
+            <el-button v-if="dl.status === 'pending' || dl.status === 'downloading'" size="small" plain @click="cancelDl(dl)">停止</el-button>
             <el-button v-if="dl.status === 'completed'" size="small" plain @click="openFolder(dl)">打开</el-button>
             <el-button v-if="dl.status === 'completed'" type="primary" size="small" plain @click="readDownload(dl)">阅读</el-button>
             <el-button v-if="dl.status === 'failed'" type="warning" size="small" plain @click="retry(dl)">重试</el-button>
-            <el-button type="danger" size="small" text @click="handleDelete(dl.id)">删除</el-button>
+            <el-button type="danger" size="small" text @click="handleDelete(dl)">删除</el-button>
           </div>
         </div>
       </div>
@@ -53,7 +54,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getDownloads, deleteDownload, clearDownloads, createDownload } from '../api'
+import { getDownloads, clearDownloads, createDownload, cancelDownload, deleteDownloadFile } from '../api'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const router = useRouter()
@@ -92,10 +93,22 @@ const loadList = async () => {
   } else if (timer) { clearInterval(timer); timer = null }
 }
 
-const handleDelete = async (id) => {
-  await deleteDownload(id)
-  list.value = list.value.filter(i => i.id !== id)
-  ElMessage.success('已删除')
+const handleDelete = async (dl) => {
+  try {
+    const act = dl.status === 'completed' || dl.file_path ? '删除记录及文件？' : '删除记录？'
+    const doDel = await ElMessageBox.confirm(act, '提示', { type: 'warning' })
+    await deleteDownloadFile(dl.id)
+    list.value = list.value.filter(i => i.id !== dl.id)
+    ElMessage.success('已删除')
+  } catch (e) {}
+}
+
+const cancelDl = async (dl) => {
+  try {
+    await cancelDownload(dl.id)
+    dl.status = 'failed'
+    ElMessage.success('已停止')
+  } catch (e) { ElMessage.error('取消失败') }
 }
 
 const handleClear = async () => {
