@@ -18,7 +18,9 @@
 
     <div v-if="loading" class="loading-state">加载中...</div>
     <div v-else-if="images.length === 0" class="empty-state">暂无图片</div>
-    <div v-else class="reader-body">
+    <div v-else class="reader-body" ref="readerBody" @scroll="onReaderScroll">
+      <!-- 顶部进度提示 -->
+      <div class="progress-hint" v-if="!hideProgress">{{ curPage }}/{{ images.length }}</div>
       <!-- 滚动 / 单页模式 -->
       <div v-if="mode !== 'double'" :class="['image-stream', mode === 'single' && 'single-mode']">
         <img v-for="(img, i) in proxiedImages" :key="i" :src="img" loading="lazy" :class="mode === 'single' && 'single-img'" />
@@ -54,6 +56,10 @@ const images = ref([])
 const chapters = ref([])
 const loading = ref(false)
 const mode = ref(localStorage.getItem('readerMode') || 'scroll')
+const readerBody = ref(null)
+const curPage = ref(1)
+const hideProgress = ref(false)
+let progressHideTimer = null
 
 const comicId = computed(() => route.params.comicId)
 const chapterId = computed(() => route.params.chapterId)
@@ -64,6 +70,20 @@ const currentTitle = computed(() => { const ch = chapters.value.find(c => c.id =
 
 // 图片通过后端代理，避免防盗链
 const proxiedImages = computed(() => images.value.map(url => `/api/image?url=${encodeURIComponent(url)}`))
+
+const onReaderScroll = () => {
+  const el = readerBody.value
+  if (!el) return
+  const imgs = el.querySelectorAll('.image-stream img, .double-page img')
+  const box = el.getBoundingClientRect()
+  for (let i = 0; i < imgs.length; i++) {
+    const r = imgs[i].getBoundingClientRect()
+    if (r.top < box.top + el.clientHeight * 0.5 && r.bottom > box.top) { curPage.value = i + 1; break }
+  }
+  hideProgress.value = false
+  clearTimeout(progressHideTimer)
+  progressHideTimer = setTimeout(() => { hideProgress.value = true }, 1500)
+}
 
 // 双页模式：把图片序号重排为 0,2,4...1,3,5... 的数组，便于左页读单页
 const normalized = computed(() => {
@@ -131,6 +151,8 @@ onUnmounted(() => { window.removeEventListener('scroll', reportProgress); clearT
 .reader-bar.bottom .mini-btn { border-radius: var(--radius-sm); }
 .image-stream { display: flex; flex-direction: column; align-items: center; gap: 4px; background: var(--bg-surface); border-radius: var(--radius-md); padding: 16px; }
 .image-stream img { max-width: 100%; border-radius: var(--radius-sm); }
+.reader-body { position: relative; }
+.progress-hint { position: sticky; top: 8px; z-index: 30; margin: 0 auto; width: fit-content; padding: 4px 12px; background: rgba(0,0,0,0.6); color: #fff; border-radius: 20px; font-size: 12px; pointer-events: none; transition: opacity 0.3s; }
 .image-stream.single-mode { gap: 12px; }
 .image-stream .single-img { max-width: 70%; }
 .double-stream { display: flex; flex-direction: column; gap: 12px; align-items: center; }
