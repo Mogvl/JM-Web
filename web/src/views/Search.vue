@@ -19,7 +19,7 @@
     </div>
 
     <div v-if="loading" class="loading-state">加载中...</div>
-    <div v-else-if="searched && items.length === 0" class="empty-state">没有找到相关漫画</div>
+    <div v-if="searched && items.length === 0" class="empty-state">没有找到相关漫画</div>
     <div v-else class="comic-grid">
       <div v-for="comic in items" :key="comic.id" class="comic-card" @click="$router.push(`/comic/${comic.id}`)">
         <img :src="comic.cover_url" :alt="comic.title" loading="lazy" />
@@ -35,7 +35,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { search } from '../api'
 
@@ -45,13 +45,12 @@ const query = ref('')
 const items = ref([])
 const loading = ref(false)
 const searched = ref(false)
-const page = ref(parseInt(route.query.p || '1'))
+const page = ref(1)
 const totalPages = ref(1)
 
-const doSearch = async () => {
+const loadResults = async () => {
   if (!query.value.trim()) return
   searched.value = true
-  page.value = 1
   loading.value = true
   try {
     const data = await search(query.value, page.value)
@@ -61,24 +60,26 @@ const doSearch = async () => {
   finally { loading.value = false }
 }
 
+// 把 q 和 p 都写入 URL，作为详情页返回时的恢复依据
+const doSearch = async () => {
+  if (!query.value.trim()) return
+  page.value = 1
+  router.replace({ query: { q: query.value.trim(), p: undefined } })
+  await loadResults()
+}
+
 const loadPage = async (p = page.value) => {
   page.value = p
-  // 页码同步到 URL，返回时能恢复第几页
-  router.replace({ query: { ...route.query, p: p > 1 ? String(p) : undefined } })
-  loading.value = true
-  try { const data = await search(query.value, p); items.value = data.items || [] }
-  catch (e) { items.value = [] }
-  finally { loading.value = false }
+  router.replace({ query: { q: query.value.trim(), p: p > 1 ? String(p) : undefined } })
+  await loadResults()
 }
 
 onMounted(() => {
-  if (route.query.q) { query.value = route.query.q; searched.value = true; loadPage(parseInt(route.query.p || '1')) }
-})
-
-// 返回本页时若 URL 仍带页码，恢复对应页
-watch(() => route.query.p, (p) => {
-  const target = parseInt(p || '1')
-  if (target !== page.value && route.query.q) { page.value = target; loadPage(target) }
+  if (route.query.q) {
+    query.value = route.query.q
+    page.value = parseInt(route.query.p || '1')
+    loadResults()
+  }
 })
 </script>
 

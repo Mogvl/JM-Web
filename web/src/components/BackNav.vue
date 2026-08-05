@@ -19,7 +19,9 @@ const props = defineProps({
 
 const router = useRouter()
 const goBack = () => {
-  if (window.history.length > 1) router.back()
+  // history.state.back 由 vue-router 写入，记录真实的上一站内路由；
+  // 用它判断可避免「新标签页直进 + 之前浏览过外部网页」导致 router.back() 跳出应用
+  if (history.state?.back) router.back()
   else router.push(props.fallback)
 }
 </script>
