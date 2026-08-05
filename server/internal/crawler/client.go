@@ -800,7 +800,36 @@ func (c *Client) Register(username, email, password, passwordConfirm, gender str
 }
 
 func (c *Client) GetUserInfo() (*LoginUserData, error) {
-	return nil, fmt.Errorf("not logged in")
+	if c.auth == "" {
+		return nil, fmt.Errorf("not logged in")
+	}
+	// 用当前 auth token 取用户信息（/user/info 返回与登录一致的字段）
+	body, err := c.get("/user/info", map[string]string{})
+	if err != nil {
+		return nil, err
+	}
+
+	var resp struct {
+		Code     int             `json:"code"`
+		Data     json.RawMessage `json:"data"`
+		ErrorMsg string          `json:"errorMsg"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil || resp.Code != 200 {
+		return nil, fmt.Errorf("get user info failed")
+	}
+
+	var userData LoginUserData
+	if err := json.Unmarshal(resp.Data, &userData); err != nil {
+		// 兼容直接返回 user 对象的情况
+		var wrapper struct {
+			User LoginUserData `json:"user"`
+		}
+		if err2 := json.Unmarshal(body, &wrapper); err2 == nil && wrapper.User.Username != "" {
+			return &wrapper.User, nil
+		}
+		return nil, fmt.Errorf("parse user info failed")
+	}
+	return &userData, nil
 }
 
 func (c *Client) ToggleFavorite(comicID string) (bool, error) {

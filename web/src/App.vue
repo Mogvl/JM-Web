@@ -14,9 +14,11 @@
         <div class="user-stats" v-if="username !== '游客'">
           <span class="stat"><b>{{ userInfo.coins }}</b> J币</span>
           <span class="stat"><b>{{ userInfo.level_name || userInfo.level }}</b></span>
+          <span class="stat"><b>{{ userInfo.favorites }}</b> 收藏</span>
         </div>
         <div class="user-actions">
           <el-button v-if="username !== '游客'" type="primary" size="small" round @click="handleSign">签到</el-button>
+          <el-button v-if="username !== '游客'" type="primary" size="small" round plain @click="loadUserInfo">刷新信息</el-button>
           <el-button size="small" round plain @click="handleLogout">退出</el-button>
         </div>
       </div>
@@ -83,7 +85,7 @@
 import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Star, Clock, ChatDotRound, ChatLineSquare, HomeFilled, Search, Grid, Calendar, Download, FolderOpened, Setting, QuestionFilled, Connection, MagicStick, Upload, Folder, List, FullScreen, Menu, Close } from '@element-plus/icons-vue'
-import { sign } from './api'
+import { sign, getUserInfo } from './api'
 import { ElMessage } from 'element-plus'
 
 const router = useRouter()
@@ -96,9 +98,25 @@ const userInfo = ref({
   level: parseInt(localStorage.getItem('level') || '0'),
   level_name: localStorage.getItem('level_name') || '',
   avatar: localStorage.getItem('avatar') || '',
+  favorites: parseInt(localStorage.getItem('favorites') || '0'),
 })
-
 const isLogin = computed(() => route.path === '/login')
+
+// 刷新用户信息（对齐原版 SetUser/GetUserInfo）
+const loadUserInfo = async () => {
+  if (localStorage.getItem('token') === 'guest') return
+  try {
+    const info = await getUserInfo()
+    if (info) {
+      if (info.coin !== undefined) { userInfo.value.coins = info.coin; localStorage.setItem('coins', String(info.coin)) }
+      if (info.level !== undefined) { userInfo.value.level = info.level; localStorage.setItem('level', String(info.level)) }
+      if (info.photo) { userInfo.value.avatar = info.photo; localStorage.setItem('avatar', info.photo) }
+      userInfo.value.level_name = info.level_name || userInfo.value.level_name
+      localStorage.setItem('level_name', userInfo.value.level_name)
+      if (info.album_favorites !== undefined) { userInfo.value.favorites = info.album_favorites; localStorage.setItem('favorites', String(info.album_favorites)) }
+    }
+  } catch (e) {}
+}
 
 const doSearch = () => {
   if (searchQuery.value.trim()) router.push({ path: '/search', query: { q: searchQuery.value.trim() } })
@@ -108,7 +126,7 @@ const toggleSidebar = () => { sidebarOpen.value = !sidebarOpen.value }
 const onNavClick = () => { sidebarOpen.value = false }
 
 const handleSign = async () => {
-  try { await sign(); ElMessage.success('签到成功') } catch (e) { ElMessage.error('签到失败') }
+  try { await sign(); ElMessage.success('签到成功'); loadUserInfo() } catch (e) { ElMessage.error('签到失败') }
 }
 
 const handleLogout = () => { localStorage.clear(); router.push('/login') }

@@ -101,7 +101,11 @@ const handleLogin = async () => {
     else { localStorage.removeItem('saved_username'); localStorage.removeItem('saved_password') }
     ElMessage.success('登录成功')
     window.location.href = '/'
-  } catch (e) { ElMessage.error('登录失败，请检查用户名和密码') }
+  } catch (e) {
+    const msg = e?.response?.data?.error || e?.message || ''
+    if (msg) ElMessage.error(msg)
+    else ElMessage.error('登录失败，请检查用户名和密码')
+  }
   finally { loading.value = false }
 }
 
