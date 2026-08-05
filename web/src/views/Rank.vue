@@ -40,11 +40,8 @@ const loadRanking = async () => {
     const data = await getRanking(activeTab.value, page.value)
     items.value = data.items || []
     totalPages.value = data.total_pages || 1
-  } catch (e) {
-    items.value = []
-  } finally {
-    loading.value = false
-  }
+  } catch (e) { items.value = [] }
+  finally { loading.value = false }
 }
 
 onMounted(loadRanking)

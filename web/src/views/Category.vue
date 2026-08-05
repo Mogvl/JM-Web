@@ -30,6 +30,7 @@
         <div v-for="comic in items" :key="comic.id" class="comic-card" @click="$router.push(`/comic/${comic.id}`)">
           <img :src="comic.cover_url" :alt="comic.title" loading="lazy" />
           <div class="card-title">{{ comic.title }}</div>
+          <div v-if="comic.author" class="card-author">{{ comic.author }}</div>
         </div>
       </div>
 
@@ -123,6 +124,7 @@ onMounted(async () => {
 <style scoped>
 .cat-tabs { margin-bottom: 0; }
 .cat-tabs :deep(.el-tabs__content) { padding-top: 8px; }
+.card-author { font-size: 12px; color: var(--text-muted); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .title-section { padding: 8px 0; }
 .title-group { margin-bottom: 24px; }

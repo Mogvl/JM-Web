@@ -22,6 +22,7 @@
       <div v-for="comic in items" :key="comic.id" class="comic-card" @click="$router.push(`/comic/${comic.id}`)">
         <img :src="comic.cover_url" :alt="comic.title" loading="lazy" />
         <div class="card-title">{{ comic.title }}</div>
+        <div v-if="comic.author" class="card-author">{{ comic.author }}</div>
       </div>
     </div>
   </div>

@@ -5,17 +5,51 @@
       <el-card v-if="items.length === 0" class="empty-card">
         <div class="empty">还没有本地收藏</div>
       </el-card>
-      <el-card v-for="item in items" :key="item.id" @click="$router.push(`/comic/${item.id}`)" class="card" v-else>
-        <img :src="item.cover" class="cover" />
-        <div class="title">{{ item.title }}</div>
+      <el-card v-for="item in items" :key="item.id" class="card" v-else>
+        <img :src="item.cover" class="cover" @click="$router.push(`/comic/${item.id}`)" />
+        <div class="title" @click="$router.push(`/comic/${item.id}`)">{{ item.title }}</div>
+        <el-button type="danger" text size="small" @click="remove(item.id)">移除</el-button>
       </el-card>
+    </div>
+    <div v-if="items.length === 0 && canImport" class="import-section">
+      <el-button type="primary" plain @click="importFromFav">从在线收藏导入到本地</el-button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { getFavorites } from '../api'
+import { ElMessage } from 'element-plus'
+
 const items = ref(JSON.parse(localStorage.getItem('localFav') || '[]'))
+const inFlight = ref(false)
+const canImport = computed(() => localStorage.getItem('token') && localStorage.getItem('token') !== 'guest')
+
+const remove = (id) => {
+  items.value = items.value.filter(i => i.id !== id)
+  localStorage.setItem('localFav', JSON.stringify(items.value))
+  ElMessage.success('已移除')
+}
+
+const importFromFav = async () => {
+  if (inFlight.value) return
+  inFlight.value = true
+  try {
+    const data = await getFavorites()
+    const favs = data.list || data || []
+    favs.forEach(f => {
+      if (!items.value.find(x => x.id === f.comic_id)) {
+        items.value.push({ id: f.comic_id, title: f.comic?.title, cover: f.comic?.cover_url })
+      }
+    })
+    localStorage.setItem('localFav', JSON.stringify(items.value))
+    ElMessage.success(`已导入 ${favs.length} 条收藏`)
+  } catch (e) { ElMessage.error('导入失败') }
+  finally { inFlight.value = false }
+}
+
+onMounted(() => {})
 </script>
 
 <style scoped>

@@ -27,8 +27,8 @@
     </div>
 
     <div v-if="loading" class="loading-state">加载中...</div>
-    <div v-if="searched && items.length === 0" class="empty-state">没有找到相关漫画</div>
-    <div v-else class="comic-grid">
+    <div v-else-if="searched && items.length === 0" class="empty-state">没有找到相关漫画</div>
+    <div v-else-if="searched" class="comic-grid">
       <div v-for="comic in items" :key="comic.id" class="comic-card" @click="$router.push(`/comic/${comic.id}`)">
         <img :src="comic.cover_url" :alt="comic.title" loading="lazy" />
         <div class="card-title">{{ comic.title }}</div>

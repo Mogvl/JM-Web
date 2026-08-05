@@ -59,6 +59,7 @@ export const deleteDownloadFile = (id) => api.delete(`/download/${id}/file`)
 // 用户
 export const login = (username, password) => api.post('/login', { username, password }).then(r => r.data)
 export const register = (username, email, password, password_confirm, gender) => api.post('/register', { username, email, password, password_confirm, gender }).then(r => r.data)
+export const logout = () => api.post('/logout')
 export const sign = () => api.post('/user/sign')
 export const getUserInfo = () => api.get('/user/info').then(r => r.data)
 

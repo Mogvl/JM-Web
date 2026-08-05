@@ -58,10 +58,13 @@
       <div class="section-head">
         <h2 class="section-title">章节列表</h2>
         <span class="count">{{ chapters.length }} 话</span>
+        <span class="continue-reading" v-if="lastProgress.chapter_id">
+          <el-button size="small" type="primary" plain @click="continueRead">继续上次阅读 →</el-button>
+        </span>
       </div>
       <div v-if="chapters.length === 0" class="empty-state">暂无章节</div>
       <div v-else class="chapter-flow">
-        <button v-for="ch in chapters" :key="ch.id" class="chapter-item" @click="$router.push(`/read/${$route.params.id}/${ch.id}`)">
+        <button v-for="ch in chapters" :key="ch.id" class="chapter-item" :class="{ 'current': ch.id === lastProgress.chapter_id }" @click="$router.push(`/read/${$route.params.id}/${ch.id}`)">
           {{ ch.title || `第${ch.sort_order}话` }}
         </button>
       </div>
@@ -124,7 +127,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getComic, getChapters, getComments, getFavorites, addFavorite, removeFavorite, createDownload, getSubComments, postComment, replyComment } from '../api'
+import { getComic, getChapters, getComments, getFavorites, addFavorite, removeFavorite, createDownload, getSubComments, postComment, replyComment, getProgress } from '../api'
 import { Star, Download, ChatDotRound, Pointer } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import DownloadEpsDialog from '../components/DownloadEpsDialog.vue'
@@ -143,6 +146,7 @@ const posting = ref(false)
 const replyingTo = ref('')
 const subOpen = ref('')
 const subMap = ref({})
+const lastProgress = ref({})
 
 const canComment = computed(() => localStorage.getItem('token') && localStorage.getItem('token') !== 'guest')
 
@@ -156,7 +160,12 @@ onMounted(async () => {
     const favs = await getFavorites()
     isFav.value = favs.some(f => f.comic_id === id || f.id === id)
   } catch (e) {}
+  try { lastProgress.value = await getProgress(id) || {} } catch (e) {}
 })
+
+const continueRead = () => {
+  if (lastProgress.value.chapter_id) router.push(`/read/${route.params.id}/${lastProgress.value.chapter_id}`)
+}
 
 const toggleFavorite = async () => {
   const id = route.params.id
@@ -236,6 +245,8 @@ const loadSubs = async (comment) => {
 .chapter-flow { display: flex; flex-wrap: wrap; gap: 8px; }
 .chapter-item { padding: 8px 16px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-secondary); border-radius: var(--radius-sm); font-size: 13px; cursor: pointer; transition: var(--transition); }
 .chapter-item:hover { border-color: var(--accent); color: var(--accent); }
+.chapter-item.current { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.continue-reading { margin-left: auto; }
 
 .comment-list { display: flex; flex-direction: column; gap: 12px; }
 .comment-item { display: flex; gap: 12px; padding: 14px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); }

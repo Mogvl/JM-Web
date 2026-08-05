@@ -44,7 +44,11 @@ const handleClear = async () => {
 }
 
 onMounted(async () => {
-  list.value = await getHistory()
+  try {
+    list.value = await getHistory()
+  } catch (e) {
+    list.value = []
+  }
   loading.value = false
 })
 </script>
