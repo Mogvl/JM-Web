@@ -35,16 +35,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { search } from '../api'
 
 const route = useRoute()
+const router = useRouter()
 const query = ref('')
 const items = ref([])
 const loading = ref(false)
 const searched = ref(false)
-const page = ref(1)
+const page = ref(parseInt(route.query.p || '1'))
 const totalPages = ref(1)
 
 const doSearch = async () => {
@@ -60,15 +61,24 @@ const doSearch = async () => {
   finally { loading.value = false }
 }
 
-const loadPage = async () => {
+const loadPage = async (p = page.value) => {
+  page.value = p
+  // 页码同步到 URL，返回时能恢复第几页
+  router.replace({ query: { ...route.query, p: p > 1 ? String(p) : undefined } })
   loading.value = true
-  try { const data = await search(query.value, page.value); items.value = data.items || [] }
+  try { const data = await search(query.value, p); items.value = data.items || [] }
   catch (e) { items.value = [] }
   finally { loading.value = false }
 }
 
 onMounted(() => {
-  if (route.query.q) { query.value = route.query.q; doSearch() }
+  if (route.query.q) { query.value = route.query.q; searched.value = true; loadPage(parseInt(route.query.p || '1')) }
+})
+
+// 返回本页时若 URL 仍带页码，恢复对应页
+watch(() => route.query.p, (p) => {
+  const target = parseInt(p || '1')
+  if (target !== page.value && route.query.q) { page.value = target; loadPage(target) }
 })
 </script>
 
