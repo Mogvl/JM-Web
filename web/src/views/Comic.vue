@@ -1,5 +1,6 @@
 <template>
   <div class="comic-page" v-if="comic">
+    <BackNav :title="comic.title" fallback="/search" />
     <div class="detail-header">
       <div class="cover-wrap">
         <img :src="comic.cover_url" class="cover" />
@@ -98,6 +99,7 @@ import { getComic, getChapters, getComments, getFavorites, addFavorite, removeFa
 import { Star, Download, ChatDotRound } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import DownloadEpsDialog from '../components/DownloadEpsDialog.vue'
+import BackNav from '../components/BackNav.vue'
 
 const route = useRoute()
 const router = useRouter()

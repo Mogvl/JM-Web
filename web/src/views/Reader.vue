@@ -1,13 +1,13 @@
 <template>
   <div class="reader-page">
-    <div class="reader-bar">
-      <el-button text @click="$router.back()"><el-icon><ArrowLeft /></el-icon> 返回</el-button>
-      <span class="chapter-title">{{ currentTitle }}</span>
-      <div class="nav-btns">
-        <el-button size="small" :disabled="!hasPrev" @click="prevChapter">上一章</el-button>
-        <el-button size="small" :disabled="!hasNext" @click="nextChapter">下一章</el-button>
-      </div>
-    </div>
+    <BackNav :title="currentTitle" :fallback="`/comic/${comicId}`">
+      <template #right>
+        <div class="nav-btns">
+          <button class="mini-btn" :disabled="!hasPrev" @click="prevChapter">上一章</button>
+          <button class="mini-btn" :disabled="!hasNext" @click="nextChapter">下一章</button>
+        </div>
+      </template>
+    </BackNav>
 
     <div v-if="loading" class="loading-state">加载中...</div>
     <div v-else-if="images.length === 0" class="empty-state">暂无图片</div>
@@ -16,8 +16,8 @@
     </div>
 
     <div class="reader-bar bottom">
-      <el-button size="small" :disabled="!hasPrev" @click="prevChapter">上一章</el-button>
-      <el-button size="small" :disabled="!hasNext" @click="nextChapter">下一章</el-button>
+      <button class="mini-btn" :disabled="!hasPrev" @click="prevChapter">上一章</button>
+      <button class="mini-btn" :disabled="!hasNext" @click="nextChapter">下一章</button>
     </div>
   </div>
 </template>
@@ -27,6 +27,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import { getImages, getChapters } from '../api'
+import BackNav from '../components/BackNav.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -66,10 +67,12 @@ watch(() => route.params.chapterId, loadImages)
 </script>
 
 <style scoped>
-.reader-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 16px; }
-.reader-bar.bottom { margin-bottom: 0; margin-top: 16px; justify-content: center; }
-.chapter-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
-.nav-btns { display: flex; gap: 8px; }
+.mini-btn { padding: 7px 14px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-secondary); border-radius: var(--radius-sm); font-size: 13px; font-family: inherit; cursor: pointer; transition: var(--transition); }
+.mini-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.mini-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.nav-btns { display: flex; gap: 8px; flex-shrink: 0; }
+.reader-bar.bottom { display: flex; justify-content: center; gap: 12px; margin: 16px auto 0; padding: 16px 24px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.reader-bar.bottom .mini-btn { border-radius: var(--radius-sm); }
 .image-stream { display: flex; flex-direction: column; align-items: center; gap: 4px; background: var(--bg-surface); border-radius: var(--radius-md); padding: 16px; }
 .image-stream img { max-width: 100%; border-radius: var(--radius-sm); }
 </style>
