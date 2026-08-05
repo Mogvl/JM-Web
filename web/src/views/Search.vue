@@ -9,9 +9,17 @@
         </template>
         <span class="hint-icon">?</span>
       </el-tooltip>
-      <el-input v-model="query" placeholder="搜索漫画...支持 +、- 语法" @keyup.enter="doSearch" clearable size="large">
+      <el-autocomplete
+        v-model="query"
+        :fetch-suggestions="querySuggestions"
+        placeholder="搜索漫画...支持 +、- 语法"
+        size="large"
+        clearable
+        @keyup.enter="doSearch"
+        @select="(item) => { query = item.value; doSearch() }"
+      >
         <template #append><el-button @click="doSearch">搜索</el-button></template>
-      </el-input>
+      </el-autocomplete>
     </div>
 
     <div v-if="searched" class="filter-bar">
@@ -48,6 +56,19 @@ const searched = ref(false)
 const page = ref(1)
 const totalPages = ref(1)
 
+// 搜索历史缓存（对齐原版 CacheWord）
+const SEARCH_CACHE_KEY = 'searchCache'
+const getSearchCache = () => JSON.parse(localStorage.getItem(SEARCH_CACHE_KEY) || '[]')
+const addSearchCache = (word) => {
+  const list = getSearchCache().filter(w => w !== word)
+  list.unshift(word)
+  localStorage.setItem(SEARCH_CACHE_KEY, JSON.stringify(list.slice(0, 10)))
+}
+const querySuggestions = (q, cb) => {
+  const words = getSearchCache().filter(w => w.includes(q))
+  cb(words.map(w => ({ value: w })))
+}
+
 const loadResults = async () => {
   if (!query.value.trim()) return
   searched.value = true
@@ -64,6 +85,7 @@ const loadResults = async () => {
 const doSearch = async () => {
   if (!query.value.trim()) return
   page.value = 1
+  addSearchCache(query.value.trim())
   router.replace({ query: { q: query.value.trim(), p: undefined } })
   await loadResults()
 }
