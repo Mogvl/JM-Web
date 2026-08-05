@@ -57,6 +57,9 @@ func (r *Router) setupRoutes() {
 		api.GET("/ranking", r.GetRanking)
 		api.GET("/comic/:id", r.GetComic)
 		api.GET("/comic/:id/chapters", r.GetChapters)
+		api.GET("/comic/:id/chapter/:chapterId", r.GetComicChapter)
+		api.GET("/comic/:id/progress", r.GetReadingProgress)
+		api.POST("/comic/:id/progress", r.SaveReadingProgress)
 		api.GET("/chapter/:id", r.GetChapterImages)
 		api.GET("/categories", r.GetCategories)
 		api.GET("/categories/filter", r.GetCategoryFilter)
@@ -66,6 +69,8 @@ func (r *Router) setupRoutes() {
 		// 评论
 		api.GET("/comic/:id/comments", r.GetComments)
 		api.GET("/comment/:id/sub", r.GetSubComments)
+		api.GET("/comments/mine", r.GetMyComments)
+		api.GET("/comments/all", r.GetAllComments)
 
 		// 收藏
 		api.GET("/favorites", r.GetFavorites)
@@ -86,8 +91,12 @@ func (r *Router) setupRoutes() {
 		// 用户
 		api.POST("/login", r.Login)
 		api.POST("/register", r.Register)
+		api.POST("/logout", r.Logout)
+		api.GET("/captcha", r.GetCaptcha)
 		api.GET("/user/info", r.GetUserInfo)
 		api.POST("/user/sign", r.Sign)
+		api.GET("/doh/config", r.GetDohConfig)
+		api.POST("/doh/check", r.CheckDoh)
 
 		// 帮助
 		api.GET("/help", r.GetHelp)

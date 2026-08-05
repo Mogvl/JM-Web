@@ -58,6 +58,67 @@ func (r *Router) GetChapters(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"chapters": chapters})
 }
 
+// GetComicChapter 按漫画ID+章节ID获取图片（含下载章节场景）
+func (r *Router) GetComicChapter(c *gin.Context) {
+	comicID := c.Param("id")
+	chapterID := c.Param("chapterId")
+
+	// 校验漫画与章节属于同一作品
+	detail, err := r.client.GetComicDetail(comicID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get comic"})
+		return
+	}
+	found := false
+	for _, ch := range detail.Chapters {
+		if ch.ID == chapterID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		c.JSON(http.StatusNotFound, gin.H{"error": "chapter not found"})
+		return
+	}
+
+	images, _, err := r.client.GetChapterImages(chapterID)
+	if err != nil {
+		log.Errorf("Get images failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get images"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"images": images})
+}
+
+// GetReadingProgress 获取阅读进度（章节+页码）
+func (r *Router) GetReadingProgress(c *gin.Context) {
+	comicID := c.Param("id")
+	h, err := r.db.GetHistoryByComic(comicID)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"chapter_id": "", "page": 0})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"chapter_id": h.ChapterID, "page": h.Page, "last_read_at": h.LastReadAt})
+}
+
+// SaveReadingProgress 记录阅读进度
+func (r *Router) SaveReadingProgress(c *gin.Context) {
+	comicID := c.Param("id")
+	var req struct {
+		ChapterID string `json:"chapter_id"`
+		Page      int    `json:"page"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid params"})
+		return
+	}
+	if err := r.db.UpsertHistory(comicID, req.ChapterID, req.Page); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "saved"})
+}
+
 func (r *Router) GetChapterImages(c *gin.Context) {
 	chapterID := c.Param("id")
 
@@ -353,6 +414,60 @@ func (r *Router) GetSubComments(c *gin.Context) {
 	c.JSON(http.StatusOK, comments)
 }
 
+func (r *Router) GetMyComments(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	comments, err := r.client.GetMyComments(page)
+	if err != nil {
+		log.Errorf("Get my comments failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed"})
+		return
+	}
+	c.JSON(http.StatusOK, comments)
+}
+
+func (r *Router) GetAllComments(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	comments, err := r.client.GetAllComments(page)
+	if err != nil {
+		log.Errorf("Get all comments failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed"})
+		return
+	}
+	c.JSON(http.StatusOK, comments)
+}
+
+// ==================== DoH ====================
+
+func (r *Router) GetDohConfig(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"dns": []string{
+			"https://dns.alidns.com/dns-query",
+			"https://doh.pub/dns-query",
+			"https://1.1.1.1/dns-query",
+			"https://8.8.8.8/dns-query",
+		},
+		"enabled": false,
+	})
+}
+
+func (r *Router) CheckDoh(c *gin.Context) {
+	var req struct {
+		URL string `json:"url"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.URL == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "url required"})
+		return
+	}
+	// 简单探测 DoH 可达性
+	resp, err := http.Get(req.URL)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"reachable": false, "error": err.Error()})
+		return
+	}
+	resp.Body.Close()
+	c.JSON(http.StatusOK, gin.H{"reachable": true})
+}
+
 // ==================== 用户 ====================
 
 func (r *Router) Login(c *gin.Context) {
@@ -430,6 +545,22 @@ func (r *Router) Sign(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Signed"})
+}
+
+// Logout 清除客户端 token
+func (r *Router) Logout(c *gin.Context) {
+	r.client.SetAuth("")
+	c.JSON(http.StatusOK, gin.H{"message": "Logged out"})
+}
+
+// GetCaptcha 获取注册验证码
+func (r *Router) GetCaptcha(c *gin.Context) {
+	img, err := r.client.GetCaptcha()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"code_img": img})
 }
 
 // ==================== 每周必看 ====================

@@ -23,10 +23,15 @@ export const getRanking = (type = 'daily', page = 1) => api.get('/ranking', { pa
 export const getCategoryFilter = (category, sort = 'mr', page = 1) => api.get('/categories/filter', { params: { category, sort, page } }).then(r => r.data)
 export const getWeekCategories = () => api.get('/week').then(r => r.data)
 export const getWeekFilter = (id, type, page = 0) => api.get('/week/filter', { params: { id, type, page } }).then(r => r.data)
+// 阅读进度
+export const getProgress = (comicId) => api.get(`/comic/${comicId}/progress`).then(r => r.data)
+export const saveProgress = (comicId, chapterId, page) => api.post(`/comic/${comicId}/progress`, { chapter_id: chapterId, page })
 
 // 评论
 export const getComments = (comicId, page = 1) => api.get(`/comic/${comicId}/comments`, { params: { page } }).then(r => r.data)
 export const getSubComments = (commentId, page = 1) => api.get(`/comment/${commentId}/sub`, { params: { page } }).then(r => r.data)
+export const getMyComments = (page = 1) => api.get('/comments/mine', { params: { page } }).then(r => r.data)
+export const getAllComments = (page = 1) => api.get('/comments/all', { params: { page } }).then(r => r.data)
 
 // 收藏
 export const getFavorites = () => api.get('/favorites').then(r => r.data)

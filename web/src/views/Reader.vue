@@ -23,10 +23,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft } from '@element-plus/icons-vue'
-import { getImages, getChapters } from '../api'
+import { getImages, getChapters, saveProgress } from '../api'
 import BackNav from '../components/BackNav.vue'
 
 const route = useRoute()
@@ -64,6 +64,23 @@ onMounted(async () => {
 })
 
 watch(() => route.params.chapterId, loadImages)
+
+// 记录阅读进度（滚动到第几张图时上报，避免频繁请求）
+let progressTimer = null
+const reportProgress = () => {
+  clearTimeout(progressTimer)
+  progressTimer = setTimeout(async () => {
+    const imgs = document.querySelectorAll('.image-stream img')
+    let page = 0
+    for (let i = 0; i < imgs.length; i++) {
+      const r = imgs[i].getBoundingClientRect()
+      if (r.top < window.innerHeight && r.bottom > 0) { page = i + 1; break }
+    }
+    try { await saveProgress(comicId.value, chapterId.value, page) } catch (e) {}
+  }, 800)
+}
+onMounted(() => window.addEventListener('scroll', reportProgress, { passive: true }))
+onUnmounted(() => { window.removeEventListener('scroll', reportProgress); clearTimeout(progressTimer) })
 </script>
 
 <style scoped>

@@ -76,6 +76,9 @@ type CommentData struct {
 	Avatar     string `json:"avatar"`
 	LikeCount  int    `json:"like_count"`
 	CreateTime string `json:"create_time"`
+	ReplyCount int    `json:"reply_count"`
+	LikeFlag   int    `json:"like_flag"`
+	ParentID   string `json:"parent_id"`
 }
 
 type CommentItem struct {
@@ -85,6 +88,9 @@ type CommentItem struct {
 	Avatar     string `json:"avatar"`
 	LikeCount  int    `json:"like_count"`
 	CreateTime string `json:"create_time"`
+	ReplyCount int    `json:"reply_count"`
+	LikeFlag   int    `json:"like_flag"`
+	ParentID   string `json:"parent_id"`
 }
 
 type AlbumDetail struct {

@@ -556,14 +556,87 @@ func (c *Client) GetComments(comicID string, page int) ([]CommentItem, error) {
 	if json.Unmarshal(resp.Data, &comments) != nil {
 		return nil, err
 	}
+	return toCommentItems(comments), nil
+}
+
+// GetMyComments 我的评论（需要登录 auth）
+func (c *Client) GetMyComments(page int) ([]CommentItem, error) {
+	body, err := c.get("/api/my_comment", map[string]string{
+		"page": fmt.Sprintf("%d", page), "limit": "20",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var resp struct {
+		Data json.RawMessage `json:"data"`
+	}
+	if json.Unmarshal(body, &resp) != nil {
+		return nil, err
+	}
+	var comments []CommentData
+	if json.Unmarshal(resp.Data, &comments) != nil {
+		return nil, err
+	}
+	return toCommentItems(comments), nil
+}
+
+// GetAllComments 全部评论
+func (c *Client) GetAllComments(page int) ([]CommentItem, error) {
+	body, err := c.get("/api/all_comments", map[string]string{
+		"page": fmt.Sprintf("%d", page), "limit": "20",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var resp struct {
+		Data json.RawMessage `json:"data"`
+	}
+	if json.Unmarshal(body, &resp) != nil {
+		return nil, err
+	}
+	var comments []CommentData
+	if json.Unmarshal(resp.Data, &comments) != nil {
+		return nil, err
+	}
+	return toCommentItems(comments), nil
+}
+
+// GetCaptcha 获取注册验证码图片（data:image base64）
+func (c *Client) GetCaptcha() (string, error) {
+	body, err := c.get("/register", map[string]string{})
+	if err != nil {
+		return "", err
+	}
+	// 响应含验证码图片 base64，尝试提取
+	var resp struct {
+		Data struct {
+			CodeImg string `json:"code_img"`
+			CodeKey string `json:"code_key"`
+		} `json:"data"`
+	}
+	if json.Unmarshal(body, &resp) != nil && len(resp.Data.CodeImg) == 0 {
+		// 可能直接是 base64 字符串
+		var s string
+		if json.Unmarshal(body, &s) == nil {
+			return s, nil
+		}
+		return "", fmt.Errorf("no captcha found")
+	}
+	return resp.Data.CodeImg, nil
+}
+
+func toCommentItems(comments []CommentData) []CommentItem {
 	items := make([]CommentItem, len(comments))
 	for i, c := range comments {
 		items[i] = CommentItem{
 			ID: c.ID, Content: c.Content, Author: c.Author,
 			Avatar: c.Avatar, LikeCount: c.LikeCount, CreateTime: c.CreateTime,
+			ReplyCount: c.ReplyCount, LikeFlag: c.LikeFlag, ParentID: c.ParentID,
 		}
 	}
-	return items, nil
+	return items
 }
 
 func (c *Client) Login(username, password string) (*LoginUserData, error) {

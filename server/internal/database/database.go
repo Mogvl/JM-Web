@@ -3,6 +3,7 @@ package database
 import (
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/Mogvl/JM-Web/server/internal/model"
 	"github.com/glebarez/sqlite"
@@ -96,6 +97,37 @@ func (db *DB) AddHistory(comicID, chapterID string, page int) error {
 		Page:      page,
 	}
 	return db.Save(history).Error
+}
+
+// UpsertHistory 记录阅读进度（同漫画更新章节/页码/时间）
+func (db *DB) UpsertHistory(comicID, chapterID string, page int) error {
+	var h model.History
+	err := db.Where("comic_id = ?", comicID).First(&h).Error
+	if err == nil {
+		h.ChapterID = chapterID
+		h.Page = page
+		h.LastReadAt = time.Now()
+		return db.Save(&h).Error
+	}
+	if err == gorm.ErrRecordNotFound {
+		return db.Create(&model.History{
+			ComicID:    comicID,
+			ChapterID:  chapterID,
+			Page:       page,
+			LastReadAt: time.Now(),
+		}).Error
+	}
+	return err
+}
+
+// GetHistoryByComic 取某漫画最近的阅读进度
+func (db *DB) GetHistoryByComic(comicID string) (*model.History, error) {
+	var h model.History
+	err := db.Preload("Comic").Where("comic_id = ?", comicID).Order("last_read_at DESC").First(&h).Error
+	if err != nil {
+		return nil, err
+	}
+	return &h, nil
 }
 
 func (db *DB) GetHistory() ([]model.History, error) {
