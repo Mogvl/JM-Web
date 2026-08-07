@@ -68,6 +68,6 @@ onMounted(async () => {
 .filter-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
 .chip { padding: 6px 16px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-secondary); font-size: 13px; cursor: pointer; transition: var(--transition); }
 .chip:hover { border-color: var(--border-light); color: var(--text-primary); }
-.chip.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 500; }
+.chip.active { background: var(--accent-grad); border-color: transparent; color: #fff; font-weight: 500; box-shadow: 0 8px 20px -12px rgba(156,110,217,0.9); }
 .pager { margin-top: 24px; display: flex; justify-content: center; }
 </style>

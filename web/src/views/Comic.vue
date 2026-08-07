@@ -234,8 +234,8 @@ const loadSubs = async (comment) => {
 .author-tag:hover { text-decoration: underline; }
 .desc { flex: 1; color: var(--text-secondary); font-size: 13px; line-height: 1.6; max-height: 100px; overflow-y: auto; }
 .tag-list { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
-.tag { padding: 3px 12px; background: #FBEEF3; color: #C45F7D; border: 1px solid #C45F7D; border-radius: 12px; font-size: 12px; cursor: pointer; transition: var(--transition); }
-.tag:hover { background: #C45F7D; color: #fff; }
+.tag { padding: 5px 14px; background: var(--bg-soft); color: var(--accent); border: 1px solid var(--border-light); border-radius: 999px; font-size: 12px; cursor: pointer; transition: var(--transition); }
+.tag:hover { background: var(--accent-grad); color: #fff; border-color: transparent; }
 
 .section { margin-bottom: 32px; }
 .section-head { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }

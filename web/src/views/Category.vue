@@ -136,7 +136,7 @@ onMounted(async () => {
 .subcat-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; padding: 12px 16px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); }
 .subcat-chip { padding: 4px 14px; border-radius: 16px; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-secondary); font-size: 13px; cursor: pointer; transition: var(--transition); }
 .subcat-chip:hover { border-color: var(--border-light); color: var(--text-primary); }
-.subcat-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 500; }
+.subcat-chip.active { background: var(--accent-grad); border-color: transparent; color: #fff; font-weight: 500; box-shadow: 0 8px 20px -12px rgba(156,110,217,0.9); }
 
 .bottom-bar { display: flex; align-items: center; gap: 12px; margin-top: 24px; padding: 16px 0; border-top: 1px solid var(--border); }
 .sort-select { width: 120px; }

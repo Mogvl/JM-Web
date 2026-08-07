@@ -55,6 +55,6 @@ onMounted(load)
 .cover { width: 80px; height: 100px; object-fit: cover; border-radius: 4px; }
 .info { flex: 1; }
 .info h3 { cursor: pointer; margin-bottom: 8px; }
-.info h3:hover { color: #409eff; }
+.info h3:hover { color: var(--accent); }
 .info p { color: #999; font-size: 14px; }
 </style>

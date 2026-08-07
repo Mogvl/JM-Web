@@ -54,7 +54,7 @@ onMounted(loadRanking)
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px; }
 .card { cursor: pointer; transition: all 0.3s; position: relative; }
 .card:hover { transform: translateY(-5px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-.rank-num { position: absolute; top: 10px; left: 10px; background: #409eff; color: #fff; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; z-index: 1; }
+.rank-num { position: absolute; top: 10px; left: 10px; background: var(--accent-grad); color: #fff; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; z-index: 1; }
 .cover { width: 100%; height: 250px; object-fit: cover; }
 .info { padding: 10px; }
 .title { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

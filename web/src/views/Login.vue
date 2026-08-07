@@ -130,12 +130,42 @@ const handleGuest = () => {
 </script>
 
 <style scoped>
-.auth-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #F5F6F8 0%, #EBEDF0 100%); position: relative; overflow: hidden; }
-.auth-page::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle at 30% 40%, rgba(255,77,109,0.1) 0%, transparent 50%), radial-gradient(circle at 70% 60%, rgba(99,102,241,0.08) 0%, transparent 50%); }
-.auth-card { position: relative; width: 400px; padding: 40px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: 0 12px 40px rgba(0,0,0,0.08); }
-.auth-header { text-align: center; margin-bottom: 28px; }
-.auth-title { font-size: 32px; font-weight: 700; color: var(--accent); letter-spacing: -0.5px; }
-.auth-subtitle { margin-top: 6px; color: var(--text-muted); font-size: 14px; }
-.auth-options { display: flex; gap: 20px; margin-bottom: 20px; }
-.guest-link { text-align: center; margin-top: 16px; }
+.auth-page {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  background:
+    radial-gradient(60vw 60vw at 18% -10%, rgba(180,150,235,0.30), transparent 62%),
+    radial-gradient(52vw 52vw at 104% 20%, rgba(226,152,186,0.28), transparent 60%),
+    radial-gradient(50vw 50vw at 50% 112%, rgba(176,140,220,0.22), transparent 62%),
+    linear-gradient(180deg, #F6F3FB 0%, #FBF4F7 100%);
+  position: relative; overflow: hidden;
+}
+.auth-page::before {
+  content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+  background: radial-gradient(circle at 30% 40%, rgba(178,144,234,0.14) 0%, transparent 50%), radial-gradient(circle at 70% 60%, rgba(210,147,183,0.12) 0%, transparent 50%);
+  pointer-events: none;
+}
+.auth-card {
+  position: relative; width: 400px; padding: 44px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: var(--shadow-hover);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.6), var(--shadow-hover);
+}
+.auth-header { text-align: center; margin-bottom: 30px; }
+.auth-title {
+  font-size: 34px; font-weight: 700;
+  background: var(--accent-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.5px;
+}
+.auth-subtitle { margin-top: 8px; color: var(--text-muted); font-size: 14px; letter-spacing: 0.12em; }
+.auth-options { display: flex; gap: 20px; margin-bottom: 22px; }
+.guest-link { text-align: center; margin-top: 18px; }
+.guest-link .el-button { color: var(--text-muted); }
 </style>

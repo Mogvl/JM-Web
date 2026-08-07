@@ -101,9 +101,9 @@ const readLocal = (book) => {
 
 <style scoped>
 .local h2 { margin-bottom: 20px; }
-.upload-area { border: 2px dashed #409eff; border-radius: 12px; padding: 60px; text-align: center; cursor: pointer; margin-bottom: 20px; transition: background 0.2s; }
+.upload-area { border: 2px dashed var(--accent); border-radius: 12px; padding: 60px; text-align: center; cursor: pointer; margin-bottom: 20px; transition: background 0.2s; }
 .upload-area:hover { background: rgba(64,158,255,0.05); }
-.upload-area .el-icon { color: #409eff; margin-bottom: 10px; }
+.upload-area .el-icon { color: var(--accent); margin-bottom: 10px; }
 .upload-area .hint { color: #999; font-size: 12px; margin-top: 10px; }
 .import-actions { margin-bottom: 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .pending-list { display: flex; flex-wrap: wrap; gap: 8px; flex: 1; min-width: 200px; }
